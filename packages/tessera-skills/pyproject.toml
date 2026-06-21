@@ -3,14 +3,14 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "tessera-skills"
+name = "tesserakit-skills"
 version = "0.1.0"
 description = "Skills job pack for Tessera: validate and catalog Anthropic-style SKILL.md skill collections."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Tessera" }]
 dependencies = [
-  "tessera-core>=0.1.0",
+  "tesserakit-core>=0.1.0",
   "typer>=0.12",
   "rich>=13.7",
   "pydantic>=2.7",
