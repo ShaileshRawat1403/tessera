@@ -96,7 +96,16 @@ def load_eval_records(input_path: Path, options: dict[str, Any]) -> list[EvalRec
     Side effect: stores raw rows, detections, and per-row notes in ``options``
     under private keys so validate_eval_records and write_eval_artifacts can
     reuse them without re-parsing the CSV.
+
+    When ``options["source"] == "prompts"`` the input is a prompts-pack
+    ``examples.jsonl`` (or a directory containing it) rather than a CSV; the
+    prompt-examples interchange loader is used instead of column detection.
     """
+    if options.get("source") == "prompts":
+        from tessera_evals.from_prompts import load_prompt_examples
+
+        return load_prompt_examples(input_path, options)
+
     rows = _load_csv(input_path)
     headers = list(rows[0].keys()) if rows else []
     task_type = options.get("task_type", "generic")
@@ -191,43 +200,57 @@ def validate_eval_records(
 ) -> list[ValidationFinding]:
     """Turn per-row notes and detection failures into ValidationFinding objects."""
     findings: list[ValidationFinding] = []
-    detections: dict[str, ColumnDetection] = options.get("_detections", {})
 
-    input_det = detections.get("input")
-    if input_det is None or input_det.column is None:
+    for err in options.get("_parse_errors", []):
         findings.append(
             ValidationFinding(
                 severity="error",
-                code="missing_input_column",
-                message="No input/question column was detected. Use --input-column to override.",
-                field="input",
+                code="parse_error",
+                message=f"line {err.get('line', '?')}: {err['error']}",
+                field=None,
             )
         )
 
-    for field_name in ("expected", "context"):
-        det = detections.get(field_name)
-        if det and det.column is None:
+    # Column-detection findings apply only to the CSV source. The prompts
+    # interchange source has a known field mapping, so skip them.
+    if options.get("_source") != "prompts":
+        detections: dict[str, ColumnDetection] = options.get("_detections", {})
+
+        input_det = detections.get("input")
+        if input_det is None or input_det.column is None:
             findings.append(
                 ValidationFinding(
-                    severity="info",
-                    code=f"missing_{field_name}_column",
-                    message=f"No {field_name} column was detected.",
-                    field=field_name,
+                    severity="error",
+                    code="missing_input_column",
+                    message="No input/question column was detected. Use --input-column to override.",
+                    field="input",
                 )
             )
-        elif det and 0 < det.confidence < 0.85:
-            findings.append(
-                ValidationFinding(
-                    severity="warning",
-                    code=f"low_confidence_{field_name}_column",
-                    message=(
-                        f"{field_name.capitalize()} column '{det.column}' detected at "
-                        f"confidence {det.confidence:.2f}. Use --{field_name}-column to override."
-                    ),
-                    field=field_name,
-                    metadata={"confidence": det.confidence, "reason": det.reason},
+
+        for field_name in ("expected", "context"):
+            det = detections.get(field_name)
+            if det and det.column is None:
+                findings.append(
+                    ValidationFinding(
+                        severity="info",
+                        code=f"missing_{field_name}_column",
+                        message=f"No {field_name} column was detected.",
+                        field=field_name,
+                    )
                 )
-            )
+            elif det and 0 < det.confidence < 0.85:
+                findings.append(
+                    ValidationFinding(
+                        severity="warning",
+                        code=f"low_confidence_{field_name}_column",
+                        message=(
+                            f"{field_name.capitalize()} column '{det.column}' detected at "
+                            f"confidence {det.confidence:.2f}. Use --{field_name}-column to override."
+                        ),
+                        field=field_name,
+                        metadata={"confidence": det.confidence, "reason": det.reason},
+                    )
+                )
 
     message_map = {
         "empty_input": "Input is empty.",
@@ -272,7 +295,7 @@ def write_eval_artifacts(
     write_yaml(rubric_path, default_rubric(task_type))
     write_markdown(
         quality_path,
-        _render_quality_report(raw_rows, records, findings, detections, analyses),
+        _render_quality_report(raw_rows, records, findings, detections, analyses, options.get("_source")),
     )
     write_markdown(coverage_path, _render_coverage_report(records))
 
@@ -306,27 +329,40 @@ def _render_quality_report(
     findings: list[ValidationFinding],
     detections: dict[str, ColumnDetection],
     analyses: dict[str, ColumnAnalysis],
+    source: str | None = None,
 ) -> str:
     lines: list[str] = ["# Data Quality Report", ""]
+    source_label = "prompts examples.jsonl" if source == "prompts" else "CSV"
+    lines.append(f"- Source: {source_label}")
     lines.append(f"- Raw records: {len(raw_rows)}")
     lines.append(f"- Compiled records: {len(records)}")
     lines.append(f"- Findings: {len(findings)}")
     lines.append("")
 
-    lines.append("## Column Detection")
-    lines.append("")
-    lines.append("| Field | Column | Confidence | Reason |")
-    lines.append("|---|---|---:|---|")
     override_hint_needed = False
-    for name in ("input", "expected", "context"):
-        det = detections.get(name)
-        if det is None:
-            continue
-        column = det.column or "(none)"
-        lines.append(f"| {name} | {column} | {det.confidence:.2f} | {det.reason} |")
-        if det.confidence and det.confidence < 0.95:
-            override_hint_needed = True
-    lines.append("")
+    if source == "prompts":
+        lines.append("## Field Mapping (prompts source)")
+        lines.append("")
+        lines.append("Records were ingested from a prompts-pack `examples.jsonl`. Column")
+        lines.append("detection does not apply; the field mapping is fixed:")
+        lines.append("")
+        lines.append("- input  <- `rendered_prompt` (falls back to `input_variables`)")
+        lines.append("- expected <- `expected`")
+        lines.append("")
+    else:
+        lines.append("## Column Detection")
+        lines.append("")
+        lines.append("| Field | Column | Confidence | Reason |")
+        lines.append("|---|---|---:|---|")
+        for name in ("input", "expected", "context"):
+            det = detections.get(name)
+            if det is None:
+                continue
+            column = det.column or "(none)"
+            lines.append(f"| {name} | {column} | {det.confidence:.2f} | {det.reason} |")
+            if det.confidence and det.confidence < 0.95:
+                override_hint_needed = True
+        lines.append("")
 
     if analyses:
         lines.append("## Column Analysis")

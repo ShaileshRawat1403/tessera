@@ -257,6 +257,24 @@ Why this matters for the contract: the graph lives entirely inside the pack's `v
 
 **Contract conclusion (after four packs):** Four implementers now ride the v0.1 `JobPack` contract unchanged — flat CSV rows (evals), single-file or directory prompt files (prompts), folder-of-folders with attachments (skills), and a dependency graph of steps (recipes). The contract has survived flat records, file collections, and a true graph. The v0.1 `JobPack` ABC is empirically locked; there is no pending need for a v2. Future packs should be built against it as-is, and any proposal to change it should be treated as a breaking change requiring the same bar these four packs cleared.
 
+## 5e. Inter-pack composition (data contract, not code contract)
+
+Packs compose through **artifacts**, not imports. The first composition shipped is `tessera evals compile --from-prompts`: the evals pack ingests a prompts-pack `examples.jsonl` and produces a normal eval pack.
+
+```text
+prompt files
+  ↓ tessera prompts compile
+examples.jsonl   (flat-dict interchange format)
+  ↓ tessera evals compile --from-prompts
+dataset.jsonl    (canonical EvalRecord rows, with origin/prompt_name provenance)
+```
+
+The load-bearing decision (made when the prompts pack shipped) was to emit `examples.jsonl` as a **flat dict shape, not as serialized `EvalRecord` objects**. That choice pays off here: `tessera_evals` reads the documented `examples.jsonl` shape (`id`, `rendered_prompt`, `input_variables`, `expected`, `prompt_name`, ...) without importing `tessera_prompts`. The two packs share a *data contract*, not a *code dependency*. Either can be installed without the other; the interchange format is the seam.
+
+Inside evals, the prompts source is just another `normalize` path. `load_eval_records` dispatches on `options["source"] == "prompts"` to `from_prompts.load_prompt_examples`, which maps prompt-example rows to `EvalRecord`s (input from `rendered_prompt`, expected from `expected`) and stamps `metadata.origin = "prompts"`. The validate and write steps are unchanged; column-detection findings are skipped because the field mapping is fixed, and the quality report shows a "Field Mapping (prompts source)" section instead of a detection table. No new core concepts; the composition rides the same `JobPack` lifecycle.
+
+This is the template for future inter-pack flows (e.g. recipes referencing skills, or evals ingesting an api-trace pack): one pack emits a documented flat interchange artifact, the consuming pack adds a `source` path that reads it. Packs never import each other.
+
 ## 6. Schema and type policy
 
 Two layers, on purpose. This is the rule new packs follow.

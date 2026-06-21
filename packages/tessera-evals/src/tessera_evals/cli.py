@@ -16,15 +16,16 @@ evals_app = typer.Typer(help="Compile messy data into eval-ready assets.")
 
 @evals_app.command("compile")
 def compile_cmd(
-    input: Path = typer.Option(..., "--input", "-i", exists=True, readable=True, help="Input CSV path."),
+    input: Path = typer.Option(..., "--input", "-i", exists=True, readable=True, help="Input CSV path, or a prompts examples.jsonl / prompt-pack directory with --from-prompts."),
     task: str = typer.Option(..., "--task", help="Task type, for example customer_support, rag_qa, classification."),
     output: Path = typer.Option(Path("eval_pack"), "--output", "-o", help="Output directory."),
     input_column: str | None = typer.Option(None, "--input-column", help="Override input/question column."),
     expected_column: str | None = typer.Option(None, "--expected-column", help="Override expected/golden-answer column."),
     context_column: str | None = typer.Option(None, "--context-column", help="Override context/source column."),
+    from_prompts: bool = typer.Option(False, "--from-prompts", help="Treat input as a prompts-pack examples.jsonl (or directory) instead of a CSV."),
     enrich: bool = typer.Option(False, "--enrich", help="LLM-enriched rubric (not available in v0.1)."),
 ) -> None:
-    """Create dataset, golden candidates, rubric, and quality reports from a CSV."""
+    """Create dataset, golden candidates, rubric, and quality reports from a CSV or a prompts examples.jsonl."""
     if enrich:
         console.print(
             "[yellow]LLM enrichment is not available in v0.1. Using deterministic rubric templates.[/yellow]"
@@ -37,6 +38,8 @@ def compile_cmd(
         "expected_column": expected_column,
         "context_column": context_column,
     }
+    if from_prompts:
+        options["source"] = "prompts"
 
     pack = EvalsPack()
     artifacts = pack.run(input_path=input, ctx=ctx, options=options)
