@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-from systemsdk_core.models import Artifact, RunContext, ValidationFinding
+from tessera_core.models import Artifact, RunContext, ValidationFinding
 
 
 class JobPack(ABC):

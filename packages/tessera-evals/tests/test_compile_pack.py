@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from systemsdk_core.models import RunContext
+from tessera_core.models import RunContext
 
-from systemsdk_evals.pack import EvalsPack
+from tessera_evals.pack import EvalsPack
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SAMPLE_CSV = REPO_ROOT / "examples" / "evals" / "support_logs.csv"

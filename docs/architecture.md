@@ -1,8 +1,8 @@
-# SystemSDK Architecture
+# Tessera Architecture
 
 ## 1. Purpose
 
-SystemSDK turns messy AI and engineering inputs into validated, reviewable, export-ready artifacts. It is a plugin-based SDK hub. Each domain (evals, RAG, prompts, API tracing, repo mapping, etc.) ships as its own *job pack* on top of a shared runtime.
+Tessera turns messy AI and engineering inputs into validated, reviewable, export-ready artifacts. It is a plugin-based SDK hub. Each domain (evals, RAG, prompts, API tracing, repo mapping, etc.) ships as its own *job pack* on top of a shared runtime.
 
 The promise of every pack is the same:
 
@@ -23,7 +23,7 @@ Core owns the runtime contract. Job packs own domain behavior.
 ## 2. Core vs job packs
 
 ```text
-systemsdk-core
+tessera-core
   workspace + run context
   JobPack abstract base class
   plugin loaders (CLI + job packs)
@@ -31,7 +31,7 @@ systemsdk-core
   artifact writers (JSONL, CSV, YAML, Markdown)
   CLI shell (typer)
 
-systemsdk-evals
+tessera-evals
   EvalRecord schema (pydantic BaseModel)
   CSV → canonical record compiler
   task-keyed rubric templates
@@ -79,12 +79,12 @@ That is the contract. `run()` is concrete on purpose; the three abstract steps a
 There are two entry-point groups, deliberately separated.
 
 ```text
-systemsdk.commands  = CLI extension hook
-systemsdk.jobpacks  = workflow execution contract
+tessera.commands  = CLI extension hook
+tessera.jobpacks  = workflow execution contract
 ```
 
-- `systemsdk.commands` lets a pack add subcommands to the `systemsdk` CLI. Loaded by `load_cli_plugins(app)`.
-- `systemsdk.jobpacks` registers a factory function that returns a `JobPack` instance. Loaded by `load_jobpacks()`. The loader asserts `isinstance(pack, JobPack)` and rejects anything else.
+- `tessera.commands` lets a pack add subcommands to the `tessera` CLI. Loaded by `load_cli_plugins(app)`.
+- `tessera.jobpacks` registers a factory function that returns a `JobPack` instance. Loaded by `load_jobpacks()`. The loader asserts `isinstance(pack, JobPack)` and rejects anything else.
 
 A pack can register in one group, the other, or both. The evals pack registers in both: CLI commands for ergonomics, and the JobPack for programmatic and inter-pack use. The example pack (in core) registers only as a job pack, to keep one non-evals implementer honest.
 
@@ -136,15 +136,15 @@ Rationale: pack artifact schemas *are* the boundary. Pydantic gives typed parsin
 
 ## 7. What is intentionally outside core
 
-These are explicit non-goals for `systemsdk-core` and `systemsdk-evals` v0.1. They belong in future packs, not in core.
+These are explicit non-goals for `tessera-core` and `tessera-evals` v0.1. They belong in future packs, not in core.
 
 ```text
-HTTP / API clients              →  belongs in systemsdk-api
-curl command parsing            →  belongs in systemsdk-api
-batch API execution             →  belongs in systemsdk-api
-streaming response extraction   →  belongs in systemsdk-api
-retrieval / chunking            →  belongs in systemsdk-rag
-prompt eval harness             →  belongs in systemsdk-prompts
+HTTP / API clients              →  belongs in tessera-api
+curl command parsing            →  belongs in tessera-api
+batch API execution             →  belongs in tessera-api
+streaming response extraction   →  belongs in tessera-api
+retrieval / chunking            →  belongs in tessera-rag
+prompt eval harness             →  belongs in tessera-prompts
 LLM-based rubric enrichment     →  defer; v0.1 uses deterministic templates only
 framework adapters              →  defer; export to DeepEval / OpenAI Evals /
                                     RAGAS / LangSmith ships after the canonical

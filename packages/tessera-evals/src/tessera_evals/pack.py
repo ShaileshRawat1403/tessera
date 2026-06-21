@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from systemsdk_core.jobpack import JobPack
-from systemsdk_core.models import Artifact, RunContext, ValidationFinding
+from tessera_core.jobpack import JobPack
+from tessera_core.models import Artifact, RunContext, ValidationFinding
 
-from systemsdk_evals.compiler import (
+from tessera_evals.compiler import (
     load_eval_records,
     validate_eval_records,
     write_eval_artifacts,

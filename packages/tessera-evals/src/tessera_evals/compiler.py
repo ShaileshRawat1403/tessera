@@ -4,12 +4,12 @@ import csv
 from pathlib import Path
 from typing import Any
 
-from systemsdk_core.artifacts import write_csv, write_jsonl, write_markdown, write_yaml
-from systemsdk_core.detect import ColumnDetection, detect_column
-from systemsdk_core.models import Artifact, RunContext, ValidationFinding
+from tessera_core.artifacts import write_csv, write_jsonl, write_markdown, write_yaml
+from tessera_core.detect import ColumnDetection, detect_column
+from tessera_core.models import Artifact, RunContext, ValidationFinding
 
-from systemsdk_evals.rubrics import default_rubric
-from systemsdk_evals.schema import EvalRecord
+from tessera_evals.rubrics import default_rubric
+from tessera_evals.schema import EvalRecord
 
 INPUT_CANDIDATES = [
     "question",
@@ -291,7 +291,7 @@ def _render_quality_report(
         lines.append("If any detected column is wrong, rerun with explicit flags:")
         lines.append("")
         lines.append("```bash")
-        cmd = ["systemsdk evals compile", "  --input <path>", "  --task <task_type>"]
+        cmd = ["tessera evals compile", "  --input <path>", "  --task <task_type>"]
         for name in ("input", "expected", "context"):
             det = detections.get(name)
             if det and det.column:

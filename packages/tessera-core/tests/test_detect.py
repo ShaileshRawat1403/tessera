@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from systemsdk_core.detect import detect_column
+from tessera_core.detect import detect_column
 
 
 def test_exact_match_wins_with_high_confidence():

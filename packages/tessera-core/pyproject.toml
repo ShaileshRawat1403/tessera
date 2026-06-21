@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tessera-core"
+version = "0.1.0"
+description = "Core runtime for reusable AI and engineering workflow SDK tools."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Tessera" }]
+dependencies = [
+  "typer>=0.12",
+  "rich>=13.7",
+  "pyyaml>=6.0",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+]
+
+[project.scripts]
+tessera = "tessera_core.cli:main"
+
+[project.entry-points."tessera.jobpacks"]
+example = "tessera_core.example_pack:create_pack"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tessera_core"]
