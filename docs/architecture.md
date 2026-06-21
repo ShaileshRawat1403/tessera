@@ -80,6 +80,14 @@ tessera-rag
   reference validator (dangling doc refs, orphan docs, missing targets/answers)
   dataset, corpus index, validation, coverage, retrieval-targets report
   RagPack: implements JobPack
+
+tessera-repo
+  RepoFile / RepoManifest / RepoMap schemas (pydantic BaseModel)
+  scanner (walk repo, ignore build/vendor dirs, classify language + kind, count loc)
+  manifest parsers (pyproject / package.json / requirements / cargo / go.mod)
+  hygiene validator (readme/license/tests/ci signals, large files)
+  files index, aggregate map JSON, catalog, validation, coverage, dependencies report
+  RepoPack: implements JobPack
 ```
 
 Rule: core never imports from any pack. Packs depend on core. New packs follow the same shape.
@@ -354,6 +362,40 @@ input directory (corpus/ + queries.jsonl|.yaml)
 Like the api pack (no HTTP execution) and evals (no LLM calls), the rag pack does **no retrieval**: no embeddings, no vector store, no scoring. v0.1 produces the validated, internally-consistent dataset a retriever would later be scored against. The defining property here is referential integrity — `dangling_doc_reference` catches a query whose gold target does not exist in the corpus, which would otherwise silently corrupt any retrieval metric computed downstream. The `sha256` per document gives a stable content fingerprint for future corpus-versioning and change detection.
 
 Contract note: the rag pack is the seventh implementer (counting the in-core example pack) and rides the unchanged `JobPack` lifecycle. The corpus walk, the dual jsonl/yaml query loader, and the cross-reference validation all live inside `normalize`/`validate`; core was not touched.
+
+## 5h. Repo pack v0.1 flow (repository -> structural map)
+
+The repo pack turns a repository into a validated structural artifact: a per-file inventory, an aggregate map (languages, layout, manifests, signals), the declared dependency surface, and repo-hygiene findings. It reads code but never runs it and makes no network calls.
+
+```text
+repository directory
+  ↓ load_repo_records()
+    scan_repo() walks the tree, skipping IGNORE_DIRS (.git, .venv, node_modules,
+                dist, build, target, __pycache__, ...); for each file records
+                language (by extension), kind (source/test/config/docs/build/
+                data/asset/other), lines of code, and byte size
+    detect_and_parse() best-effort parses dependency manifests (pyproject,
+                package.json, requirements.txt, Cargo.toml, go.mod)
+    build_map() aggregates languages, top-level layout, manifests, and hygiene
+                signals (has_readme/license/tests/ci/gitignore)
+  ↓ validate_repo_records()
+    empty_repo, missing_readme, missing_license, no_tests_detected,
+    no_dependency_manifest, no_ci_config, large_source_file
+  ↓ write_artifacts()
+    files.jsonl              one RepoFile per file
+    repo_map.json            aggregate RepoMap
+    index.md                 human map (signals, languages, layout, manifests)
+    validation_report.md     hygiene findings
+    coverage_report.md       files by kind + test-to-source ratio
+    dependencies_report.md   declared dependencies across all manifests
+```
+
+Two design notes carried over from the rest of the suite:
+
+- **No execution, ever.** The pack reads file contents for line counts and manifest parsing, but never imports or runs the target repo, and makes no network calls. Same discipline as api (no HTTP), evals (no LLM), and rag (no retrieval).
+- **Manifest parsing is best-effort and dependency-light.** It uses stdlib `tomllib` when available (Python 3.11+) and a regex fallback on 3.10, and a manifest that cannot be parsed yields an empty dependency list rather than a hard error. Declared dependencies are informational surface, not a contract to enforce.
+
+Contract note: eighth implementer, unchanged `JobPack` lifecycle. The walk, classification, manifest parsing, and signal computation all live in `normalize`; the hygiene rules live in `validate`. Core was not touched. Eight packs across flat rows, files, folders, a graph, a corpus, and now a whole repository tree all ride the same v0.1 contract.
 
 ## 6. Schema and type policy
 
