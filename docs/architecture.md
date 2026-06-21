@@ -64,6 +64,14 @@ tessera-recipes
   graph validator (cycles, dangling refs, reachability)
   catalog, validation, coverage, machine plan + human execution plan
   RecipesPack: implements JobPack
+
+tessera-api
+  ApiRequest / ApiAuth / Redaction schemas (pydantic BaseModel)
+  curl parser (shlex tokenizer, flag walker, multi-command splitter)
+  secret redactor (header/query/basic-auth/body, masked at parse time)
+  hygiene validator (insecure scheme, secret-in-URL, no-auth, duplicates)
+  catalog, validation, coverage, redactions audit report
+  ApiPack: implements JobPack
 ```
 
 Rule: core never imports from any pack. Packs depend on core. New packs follow the same shape.
@@ -274,6 +282,40 @@ The load-bearing decision (made when the prompts pack shipped) was to emit `exam
 Inside evals, the prompts source is just another `normalize` path. `load_eval_records` dispatches on `options["source"] == "prompts"` to `from_prompts.load_prompt_examples`, which maps prompt-example rows to `EvalRecord`s (input from `rendered_prompt`, expected from `expected`) and stamps `metadata.origin = "prompts"`. The validate and write steps are unchanged; column-detection findings are skipped because the field mapping is fixed, and the quality report shows a "Field Mapping (prompts source)" section instead of a detection table. No new core concepts; the composition rides the same `JobPack` lifecycle.
 
 This is the template for future inter-pack flows (e.g. recipes referencing skills, or evals ingesting an api-trace pack): one pack emits a documented flat interchange artifact, the consuming pack adds a `source` path that reads it. Packs never import each other.
+
+## 5f. API pack v0.1 flow (curl ingestion, redaction-first)
+
+The api pack turns messy curl/HTTP traces into a canonical API surface map. Its defining concern is **secret safety**: no plaintext secret may reach any artifact.
+
+```text
+.curl / .sh files
+  ↓ load_api_records()
+    discover_curl_files() walks *.curl and *.sh
+    split_curl_commands() joins line-continuations, splits on each `curl` token
+    parse_curl() tokenizes (shlex), walks flags (-X, -H, -u, -d, --url, ...),
+                 and REDACTS every secret inline before building the record
+  ↓ validate_api_records()
+    per-request: insecure_scheme, missing_host, secret_in_url_query, no_auth_detected
+    cross-request: duplicate_request, multiple_hosts
+  ↓ write_artifacts()
+    index.jsonl              canonical, redacted ApiRequest rows
+    index.md                 catalog (method, host, path, auth kind, redaction count)
+    validation_report.md     hygiene findings
+    coverage_report.md       method / host / auth-kind distribution
+    redactions_report.md     audit trail of every secret masked
+```
+
+Redaction-first design (the load-bearing safety property):
+
+- **Redaction happens at parse time**, inside `parse_curl`, before any value is placed into an `ApiRequest`. The canonical record is constructed already-clean; there is no window where a record holds a raw secret.
+- **The raw command is never stored.** An early implementation kept a `raw_command_preview` in metadata for debugging; the no-leak test caught that it re-introduced the very secrets being stripped. It was removed and replaced with a synthesized `summary` (`METHOD host/path`). The lesson is encoded as a permanent test.
+- **`mask()` reveals at most a couple of leading characters and the length, never the tail.** Previews like `sk…(redacted, len=48)` are enough to recognize a value without reconstructing it.
+- **Every redaction is audited.** Header, query, basic-auth, and body-field redactions all append a `Redaction` with location, kind, and masked preview, surfaced in `redactions_report.md`.
+- **A dedicated test asserts no raw secret string appears in any output file.** This is the pack's headline guarantee, enforced mechanically rather than by inspection.
+
+Live request execution (the API caller, batch runner, streaming response capture) is intentionally **out of scope for v0.1**, the same way LLM rubric enrichment is deferred in evals. v0.1 is the offline, side-effect-free pass. When execution lands, it will be a separate opt-in path with its own network and secret-handling considerations; the offline canonicalization here is the foundation it will build on.
+
+Contract note: the api pack rides the same `JobPack` lifecycle as the other five. Parsing, redaction, and validation all live inside `normalize`/`validate`; nothing about secrets or curl reached `tessera-core`.
 
 ## 6. Schema and type policy
 

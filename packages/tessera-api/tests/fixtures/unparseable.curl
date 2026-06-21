@@ -1,0 +1,5 @@
+# One good request and one with no URL (should produce a parse_error)
+
+curl -X GET https://api.example.com/ok -H "Accept: application/json"
+
+curl -X POST -H "Content-Type: application/json" -d '{"x":1}'

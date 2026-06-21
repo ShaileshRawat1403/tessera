@@ -19,8 +19,9 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 | `tessera-prompts` | Compile a directory of prompt files (frontmatter + body) into a validated catalog. |
 | `tessera-skills` | Validate and catalog Anthropic-style `SKILL.md` skill collections (with file inventory, dep extraction, and description overlap detection). |
 | `tessera-recipes` | Compile multi-step workflow recipes into validated, dependency-ordered execution plans (DAG validation: cycles, dangling refs, topological order). |
+| `tessera-api` | Parse curl/HTTP traces into a validated, secret-redacted API surface map (redaction at parse time, no request execution). |
 
-Future packs (RAG, API tracing, repo mapping) follow the same JobPack contract; they do not require changes to core.
+Future packs (RAG, repo mapping) follow the same JobPack contract; they do not require changes to core.
 
 ## Local setup
 
@@ -33,7 +34,8 @@ pip install -e packages/tessera-core \
             -e packages/tessera-evals \
             -e packages/tessera-prompts \
             -e packages/tessera-skills \
-            -e packages/tessera-recipes
+            -e packages/tessera-recipes \
+            -e packages/tessera-api
 ```
 
 ## List installed plugins
@@ -183,6 +185,24 @@ tessera evals compile --input ./out/prompt_pack --from-prompts --task customer_s
 
 The evals pack reads the documented `examples.jsonl` interchange shape (it does not import `tessera-prompts`), maps each prompt example to an `EvalRecord` (input from `rendered_prompt`, expected from `expected`), and stamps `metadata.origin = "prompts"` for provenance. `--input` accepts either the prompt-pack directory or the `examples.jsonl` file directly.
 
+## Compile an API surface map
+
+```bash
+tessera api compile --input examples/api/ --output ./out/api_pack
+```
+
+Parses `.curl` / `.sh` files of curl commands into canonical `ApiRequest` records. **Secrets are redacted at parse time** — auth headers, `-u` basic-auth, secret query params, and secret-keyed body fields are masked before any value reaches a record, and the raw command is never stored. Artifacts:
+
+```text
+index.jsonl              canonical, redacted ApiRequest rows
+index.md                 catalog (method, host, path, auth kind, redaction count)
+validation_report.md     hygiene findings (insecure scheme, secret-in-URL, no auth, ...)
+coverage_report.md       method / host / auth-kind distribution
+redactions_report.md     audit trail: every secret masked, with safe previews
+```
+
+This pack does not execute requests; live calling/batch/streaming are deferred to a later version. v0.1 is the offline "what is this API surface, and does it leak secrets" pass.
+
 ## Run the tests
 
 ```bash
@@ -190,7 +210,8 @@ The evals pack reads the documented `examples.jsonl` interchange shape (it does 
                            packages/tessera-evals/tests \
                            packages/tessera-prompts/tests \
                            packages/tessera-skills/tests \
-                           packages/tessera-recipes/tests
+                           packages/tessera-recipes/tests \
+                           packages/tessera-api/tests
 ```
 
 ## Build wheels
@@ -202,4 +223,5 @@ python -m build packages/tessera-evals
 python -m build packages/tessera-prompts
 python -m build packages/tessera-skills
 python -m build packages/tessera-recipes
+python -m build packages/tessera-api
 ```
