@@ -46,6 +46,15 @@ tessera-prompts
   variable extractor + validator
   catalog and validation reports
   PromptsPack: implements JobPack
+
+tessera-skills
+  SkillManifest / SkillFile / SkillDependencies schemas (pydantic BaseModel)
+  folder walker (folder form only; matches Anthropic Skills convention)
+  frontmatter + body parser + file inventory + classification
+  dependency extractor (bash commands, MCP tools, skill-to-skill refs)
+  description overlap detector (token Jaccard)
+  catalog, validation, coverage, and dependencies reports
+  SkillsPack: implements JobPack
 ```
 
 Rule: core never imports from any pack. Packs depend on core. New packs follow the same shape.
@@ -170,6 +179,40 @@ Why two input shapes: a single `<name>.prompt.md` keeps simple prompts ergonomic
 Why `examples.jsonl` is a flat-dict shape rather than `EvalRecord`: avoids a pack-to-pack import. When `tessera-evals` later grows a `--from-prompts` ingester, the conversion is one-directional and explicit; the two packs do not share a Python module.
 
 **Contract finding (verified during this branch):** `JobPack.normalize(input_path, options)` accepts both a CSV file path (evals) and a directory path (prompts) without changes to the core ABC. The contract held under a second, structurally different domain. No core changes were needed for v0.1 of the prompts pack.
+
+## 5c. Skills pack v0.1 flow (third JobPack implementer)
+
+```text
+skills root directory
+  ↓ load_skill_records()
+    discover_skill_folders() walks for any folder containing SKILL.md
+    parse_skill_folder() reads frontmatter + body, inventories sibling files,
+                         classifies each file (skill/script/reference/example/data/other),
+                         extracts dependencies from body:
+                           - bash commands (first word of each line in bash fences)
+                           - MCP tools matching mcp__*
+                           - skill-to-skill refs matching /<slug>
+  ↓ validate_skill_records()
+    per-record:   missing/non-canonical name, missing/short description,
+                  description_lacks_triggers, invalid SemVer, empty body
+    cross-record: name collisions, description overlap (token Jaccard)
+                    - 0.50 ≤ sim < 0.70 → warning
+                    - 0.70 ≤ sim       → error (likely silent misfire)
+  ↓ write_skill_artifacts()
+    index.jsonl              canonical SkillManifest rows
+    index.md                 human catalog (name, version, tags, files, size, deps)
+    validation_report.md     findings grouped by severity
+    coverage_report.md       tag distribution + file-kind coverage
+    dependencies_report.md   aggregate bash/MCP/skill surface + overlap matrix
+```
+
+Why folder-only (no single-file form): Anthropic Skills are canonically folders. A skill expects supporting files alongside (scripts, references, examples), and the file inventory is a real part of the manifest. Allowing a single-file form would require a parallel schema. The single-file ergonomic that prompts needs is not a skills requirement; aligning tightly with the upstream convention is the future-proof choice.
+
+Why a separate `dependencies_report.md`: skills make implicit runtime claims (this skill needs `git`, needs an `mcp__*` tool, calls another skill). Surfacing these in one place makes a skill collection auditable before deployment. This is the skills-specific report that prompts and evals do not have.
+
+Why a description-overlap detector: skills are matched by an LLM against the user's intent. When two skills have similar descriptions, the wrong one fires. The overlap matrix in `dependencies_report.md` makes that risk visible at compile time.
+
+**Contract finding (verified during this branch):** `JobPack` needed no changes for the third domain either. The same `normalize → validate → generate → run` lifecycle handles a folder-of-folders input with attachments and per-record file inventories. Three real implementers from genuinely different domains (CSV rows, prompt files, skill folders) now ride the same contract unchanged. This is the strongest signal yet that the v0.1 contract is right.
 
 ## 6. Schema and type policy
 

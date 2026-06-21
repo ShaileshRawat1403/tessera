@@ -17,8 +17,9 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 | `tessera-core` | Runtime, JobPack contract, plugin loaders, column detection, artifact writers, CLI shell. |
 | `tessera-evals` | Compile messy CSV data into a canonical eval pack. |
 | `tessera-prompts` | Compile a directory of prompt files (frontmatter + body) into a validated catalog. |
+| `tessera-skills` | Validate and catalog Anthropic-style `SKILL.md` skill collections (with file inventory, dep extraction, and description overlap detection). |
 
-Future packs (skills, recipes, RAG, API tracing, repo mapping) follow the same JobPack contract; they do not require changes to core.
+Future packs (recipes, RAG, API tracing, repo mapping) follow the same JobPack contract; they do not require changes to core.
 
 ## Local setup
 
@@ -27,7 +28,10 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -U pip
 
-pip install -e packages/tessera-core -e packages/tessera-evals -e packages/tessera-prompts
+pip install -e packages/tessera-core \
+            -e packages/tessera-evals \
+            -e packages/tessera-prompts \
+            -e packages/tessera-skills
 ```
 
 ## List installed plugins
@@ -125,10 +129,33 @@ coverage_report.md       tag distribution + example coverage + languages
 
 Validation rules catch: missing name, non-canonical name, invalid SemVer, missing/short description, empty body, undeclared variables, unused variables, examples missing required variables, and duplicate `name + version` pairs across the catalog.
 
+## Compile a skill catalog
+
+```bash
+tessera skills compile --input examples/skills/ --output ./out/skill_pack
+```
+
+Each skill is a folder containing a `SKILL.md` (YAML frontmatter + markdown body), optionally with `scripts/`, `references/`, or `examples/` siblings. The compiler inventories every file with a kind classification, extracts runtime dependencies from the body (bash commands, MCP tools, skill-to-skill references), and detects description overlap that could cause silent skill-misfire under an agent.
+
+Artifacts written:
+
+```text
+index.jsonl              canonical SkillManifest rows
+index.md                 human-readable catalog with file count + size + dep counts
+validation_report.md     per-record + cross-record findings
+coverage_report.md       tag distribution + file-kind coverage
+dependencies_report.md   bash / MCP / skill-to-skill surface + overlap matrix
+```
+
+Validation rules catch: missing/non-canonical name, missing/short description, descriptions lacking trigger phrasing, invalid SemVer, empty body, name collisions, and description overlap (token Jaccard > 0.5 warns, > 0.7 errors).
+
 ## Run the tests
 
 ```bash
-.venv/bin/python -m pytest packages/tessera-core/tests packages/tessera-evals/tests packages/tessera-prompts/tests
+.venv/bin/python -m pytest packages/tessera-core/tests \
+                           packages/tessera-evals/tests \
+                           packages/tessera-prompts/tests \
+                           packages/tessera-skills/tests
 ```
 
 ## Build wheels
@@ -138,4 +165,5 @@ python -m pip install build
 python -m build packages/tessera-core
 python -m build packages/tessera-evals
 python -m build packages/tessera-prompts
+python -m build packages/tessera-skills
 ```

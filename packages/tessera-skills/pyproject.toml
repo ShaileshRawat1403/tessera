@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tessera-skills"
+version = "0.1.0"
+description = "Skills job pack for Tessera: validate and catalog Anthropic-style SKILL.md skill collections."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Tessera" }]
+dependencies = [
+  "tessera-core>=0.1.0",
+  "typer>=0.12",
+  "rich>=13.7",
+  "pydantic>=2.7",
+  "pyyaml>=6.0",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.entry-points."tessera.commands"]
+skills = "tessera_skills.cli:register"
+
+[project.entry-points."tessera.jobpacks"]
+skills = "tessera_skills.pack:create_pack"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tessera_skills"]
