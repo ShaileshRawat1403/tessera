@@ -38,6 +38,14 @@ tessera-evals
   golden candidate builder
   data quality + coverage reports
   EvalsPack: implements JobPack
+
+tessera-prompts
+  PromptCase / PromptVariable / PromptExample schemas (pydantic BaseModel)
+  directory walker (file form and folder form)
+  frontmatter + body parser
+  variable extractor + validator
+  catalog and validation reports
+  PromptsPack: implements JobPack
 ```
 
 Rule: core never imports from any pack. Packs depend on core. New packs follow the same shape.
@@ -134,6 +142,34 @@ Pack-owned candidate lists live in `tessera_evals/compiler.py`. Future packs (`t
 Sample messy CSVs covering the detection paths live under `examples/evals/messy/`: `compound_prefix.csv` (prefix normalization), `wrapper_suffix.csv` (suffix normalization), `unusual_aliases.csv` (broader candidate vocabulary), `cryptic_kb.csv` (token + normalized hits without prior knowledge of headers). All four compile correctly with no manual override.
 
 `data_quality_report.md` is honest about uncertainty: it always shows the detection table with confidence and reason, and emits a recommended-override block whenever any confidence drops below 0.95.
+
+## 5b. Prompts pack v0.1 flow (second JobPack implementer)
+
+```text
+prompt directory (or single .prompt.md file)
+  ↓ load_prompt_records()
+    discover_prompt_files() walks: `<name>.prompt.md` and `<name>/PROMPT.md`
+    parse_prompt_file() reads YAML frontmatter and markdown body
+    extract `{{var}}` placeholders from body
+  ↓ validate_prompt_records()
+    per-record:  missing name, non-canonical name, invalid SemVer,
+                 missing/short description, empty body,
+                 undeclared/unused variables,
+                 examples missing required variables
+    cross-record: duplicate (name, version) pairs
+  ↓ write_prompt_artifacts()
+    index.jsonl              canonical PromptCase rows
+    examples.jsonl           inline examples in a flat dict shape
+    index.md                 human-readable catalog
+    validation_report.md     findings grouped by severity
+    coverage_report.md       tag distribution + example coverage + languages
+```
+
+Why two input shapes: a single `<name>.prompt.md` keeps simple prompts ergonomic; a `<name>/PROMPT.md` folder leaves room for attachments (test cases, variants, large reference files) without changing the schema. The same loader handles both; the parsed `PromptCase.metadata["source_form"]` records which form was used.
+
+Why `examples.jsonl` is a flat-dict shape rather than `EvalRecord`: avoids a pack-to-pack import. When `tessera-evals` later grows a `--from-prompts` ingester, the conversion is one-directional and explicit; the two packs do not share a Python module.
+
+**Contract finding (verified during this branch):** `JobPack.normalize(input_path, options)` accepts both a CSV file path (evals) and a directory path (prompts) without changes to the core ABC. The contract held under a second, structurally different domain. No core changes were needed for v0.1 of the prompts pack.
 
 ## 6. Schema and type policy
 

@@ -15,9 +15,10 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 | Package | Role |
 |---|---|
 | `tessera-core` | Runtime, JobPack contract, plugin loaders, column detection, artifact writers, CLI shell. |
-| `tessera-evals` | First job pack. Compiles messy CSV data into a canonical eval pack. |
+| `tessera-evals` | Compile messy CSV data into a canonical eval pack. |
+| `tessera-prompts` | Compile a directory of prompt files (frontmatter + body) into a validated catalog. |
 
-Future packs (RAG, prompts, API tracing, repo mapping) follow the same JobPack contract; they do not require changes to core.
+Future packs (skills, recipes, RAG, API tracing, repo mapping) follow the same JobPack contract; they do not require changes to core.
 
 ## Local setup
 
@@ -26,7 +27,7 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -U pip
 
-pip install -e packages/tessera-core -e packages/tessera-evals
+pip install -e packages/tessera-core -e packages/tessera-evals -e packages/tessera-prompts
 ```
 
 ## List installed plugins
@@ -101,10 +102,33 @@ All four compile correctly with no override flags.
 
 Each task type has its own deterministic rubric template (dimensions, must, must-not). Unknown task types fall back to `generic`. LLM-based rubric enrichment is intentionally not in v0.1.
 
+## Compile a prompt catalog
+
+```bash
+tessera prompts compile --input examples/prompts/ --output ./out/prompt_pack
+```
+
+Each prompt is a frontmatter + body file. Two input shapes are supported:
+
+- `<name>.prompt.md` (single file)
+- `<name>/PROMPT.md` (folder, allows attachments like test cases or variants alongside)
+
+Artifacts written:
+
+```text
+index.jsonl              canonical PromptCase rows (pydantic-serialized)
+index.md                 human-readable catalog
+examples.jsonl           inline examples extracted from frontmatter
+validation_report.md     issues (missing vars, version errors, name collisions, ...)
+coverage_report.md       tag distribution + example coverage + languages
+```
+
+Validation rules catch: missing name, non-canonical name, invalid SemVer, missing/short description, empty body, undeclared variables, unused variables, examples missing required variables, and duplicate `name + version` pairs across the catalog.
+
 ## Run the tests
 
 ```bash
-.venv/bin/python -m pytest packages/tessera-core/tests packages/tessera-evals/tests
+.venv/bin/python -m pytest packages/tessera-core/tests packages/tessera-evals/tests packages/tessera-prompts/tests
 ```
 
 ## Build wheels
@@ -113,4 +137,5 @@ Each task type has its own deterministic rubric template (dimensions, must, must
 python -m pip install build
 python -m build packages/tessera-core
 python -m build packages/tessera-evals
+python -m build packages/tessera-prompts
 ```
