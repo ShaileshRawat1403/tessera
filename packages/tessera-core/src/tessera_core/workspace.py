@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-DEFAULT_HOME = Path.home() / ".systemsdk"
+DEFAULT_HOME = Path.home() / ".tessera"
 
 
 def ensure_workspace(home: Path = DEFAULT_HOME) -> Path:

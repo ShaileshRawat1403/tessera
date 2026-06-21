@@ -1,8 +1,8 @@
-# SystemSDK
+# Tessera
 
 Reusable SDK tools that turn messy AI and engineering workflows into validated, reviewable, export-ready artifacts.
 
-SystemSDK is a plugin-based SDK hub. Each domain ships as its own *job pack* on top of a shared runtime. Every pack follows the same contract:
+Tessera is a plugin-based SDK hub. Each domain ships as its own *job pack* on top of a shared runtime. Every pack follows the same contract:
 
 ```text
 messy source data → normalize → validate → generate artifacts → export
@@ -14,8 +14,8 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 
 | Package | Role |
 |---|---|
-| `systemsdk-core` | Runtime, JobPack contract, plugin loaders, column detection, artifact writers, CLI shell. |
-| `systemsdk-evals` | First job pack. Compiles messy CSV data into a canonical eval pack. |
+| `tessera-core` | Runtime, JobPack contract, plugin loaders, column detection, artifact writers, CLI shell. |
+| `tessera-evals` | First job pack. Compiles messy CSV data into a canonical eval pack. |
 
 Future packs (RAG, prompts, API tracing, repo mapping) follow the same JobPack contract; they do not require changes to core.
 
@@ -26,22 +26,22 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -U pip
 
-pip install -e packages/systemsdk-core -e packages/systemsdk-evals
+pip install -e packages/tessera-core -e packages/tessera-evals
 ```
 
 ## List installed plugins
 
 ```bash
-systemsdk plugins
+tessera plugins
 ```
 
 Output (two groups, deliberately separate):
 
 ```text
-CLI Command Plugins (systemsdk.commands)
+CLI Command Plugins (tessera.commands)
   evals
 
-Job Packs (systemsdk.jobpacks)
+Job Packs (tessera.jobpacks)
   example  0.1.0  ExamplePack
   evals    0.1.0  EvalsPack
 ```
@@ -51,7 +51,7 @@ Job Packs (systemsdk.jobpacks)
 ## Compile an eval pack
 
 ```bash
-systemsdk evals compile \
+tessera evals compile \
   --input examples/evals/support_logs.csv \
   --task customer_support \
   --output ./out/eval_pack
@@ -72,7 +72,7 @@ data_quality_report.md   column detection table + warnings + override hint
 The compiler auto-detects which CSV columns hold the input, expected answer, and context, with a confidence score for each. If detection is uncertain (or wrong), you can override:
 
 ```bash
-systemsdk evals compile \
+tessera evals compile \
   --input data.csv \
   --task rag_qa \
   --input-column customer_question \
@@ -91,13 +91,13 @@ Each task type has its own deterministic rubric template (dimensions, must, must
 ## Run the tests
 
 ```bash
-.venv/bin/python -m pytest packages/systemsdk-core/tests packages/systemsdk-evals/tests
+.venv/bin/python -m pytest packages/tessera-core/tests packages/tessera-evals/tests
 ```
 
 ## Build wheels
 
 ```bash
 python -m pip install build
-python -m build packages/systemsdk-core
-python -m build packages/systemsdk-evals
+python -m build packages/tessera-core
+python -m build packages/tessera-evals
 ```

@@ -5,15 +5,15 @@ from typing import Callable
 
 import typer
 
-from systemsdk_core.jobpack import JobPack
+from tessera_core.jobpack import JobPack
 
 PluginRegister = Callable[[typer.Typer], None]
 
 
 def load_cli_plugins(app: typer.Typer) -> list[str]:
-    """Load entry-point group ``systemsdk.commands`` into a Typer app."""
+    """Load entry-point group ``tessera.commands`` into a Typer app."""
     loaded: list[str] = []
-    for ep in entry_points(group="systemsdk.commands"):
+    for ep in entry_points(group="tessera.commands"):
         register = ep.load()
         register(app)
         loaded.append(ep.name)
@@ -21,9 +21,9 @@ def load_cli_plugins(app: typer.Typer) -> list[str]:
 
 
 def load_jobpacks() -> dict[str, JobPack]:
-    """Load entry-point group ``systemsdk.jobpacks`` and instantiate each pack."""
+    """Load entry-point group ``tessera.jobpacks`` and instantiate each pack."""
     packs: dict[str, JobPack] = {}
-    for ep in entry_points(group="systemsdk.jobpacks"):
+    for ep in entry_points(group="tessera.jobpacks"):
         factory = ep.load()
         pack = factory()
         if not isinstance(pack, JobPack):

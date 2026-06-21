@@ -6,9 +6,9 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from systemsdk_core.models import RunContext
+from tessera_core.models import RunContext
 
-from systemsdk_evals.pack import EvalsPack
+from tessera_evals.pack import EvalsPack
 
 console = Console()
 evals_app = typer.Typer(help="Compile messy data into eval-ready assets.")
