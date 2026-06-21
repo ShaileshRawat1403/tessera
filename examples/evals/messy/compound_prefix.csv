@@ -1,0 +1,5 @@
+ticket_id,customer_question,approved_answer,policy_context
+A-100,Can I change my plan mid-cycle?,Plan changes take effect on the next billing cycle.,Plan changes are queued and applied at the next billing boundary.
+A-101,Why was my card declined?,Verify the card details and try again; if it persists contact billing.,Card declines should be diagnosed against the gateway before refund actions.
+A-102,How do I export my data?,Data export is available from Settings > Account > Export.,Self-service export is the default; backend export is on request only.
+A-103,Can I delete my account?,Account deletion is permanent; confirm via the email link.,Account deletion requires email confirmation and is irreversible after 7 days.

@@ -1,0 +1,5 @@
+id,request_body,team_resolution,kb_article
+K-301,The dashboard is loading blank after the last update.,Clear the cache and hard refresh; if it persists check the browser console for CSP errors.,The post-update blank dashboard is usually a stale service worker; cache-clear resolves it.
+K-302,My SSO login is stuck in a redirect loop.,Verify the SAML assertion attribute mapping for NameID and Email; mismatch causes the loop.,SSO redirect loops trace back to NameID/Email mapping mismatches in 90% of cases.
+K-303,Why are my exports missing the last day of data?,Exports respect the timezone in account settings; UTC versus local can clip the window.,Export windows are timezone-bound; verify account TZ matches the requested window.
+K-304,The webhook signature is failing verification.,Confirm you're using the raw request body and the active signing secret.,Webhook signature failures usually mean the body was JSON-reparsed or an old secret was used.
