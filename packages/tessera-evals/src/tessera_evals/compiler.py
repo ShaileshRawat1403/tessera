@@ -5,7 +5,13 @@ from pathlib import Path
 from typing import Any
 
 from tessera_core.artifacts import write_csv, write_jsonl, write_markdown, write_yaml
-from tessera_core.detect import ColumnDetection, detect_column
+from tessera_core.detect import (
+    ColumnAnalysis,
+    ColumnDetection,
+    analyze_column,
+    detect_by_content,
+    detect_column,
+)
 from tessera_core.models import Artifact, RunContext, ValidationFinding
 
 from tessera_evals.rubrics import default_rubric
@@ -19,16 +25,41 @@ INPUT_CANDIDATES = [
     "user_message",
     "message",
     "text",
+    "user_input",
+    "user_query",
+    "user_request",
+    "request",
+    "ask",
+    "inquiry",
+    "issue",
+    "complaint",
+    "ticket",
+    "body",
+    "question_text",
 ]
 EXPECTED_CANDIDATES = [
     "golden_answer",
     "expected",
     "expected_answer",
+    "expected_response",
     "answer",
     "approved_answer",
     "final_resolution",
     "resolution",
     "response",
+    "ground_truth",
+    "groundtruth",
+    "label",
+    "target",
+    "correct_answer",
+    "ideal_response",
+    "reference",
+    "reference_answer",
+    "gold",
+    "truth",
+    "reply",
+    "agent_response",
+    "team_response",
 ]
 CONTEXT_CANDIDATES = [
     "context",
@@ -37,6 +68,20 @@ CONTEXT_CANDIDATES = [
     "document",
     "source_text",
     "retrieved_context",
+    "retrieved",
+    "retrieved_snippet",
+    "snippet",
+    "passage",
+    "knowledge",
+    "kb",
+    "kb_article",
+    "doc",
+    "documentation",
+    "article",
+    "background",
+    "evidence",
+    "citation",
+    "reference_text",
 ]
 
 
@@ -62,6 +107,19 @@ def load_eval_records(input_path: Path, options: dict[str, Any]) -> list[EvalRec
         "context": detect_column(headers, "context", CONTEXT_CANDIDATES, options.get("context_column")),
     }
 
+    if detections["input"].column is None and options.get("input_column") is None:
+        already_taken = [d.column for d in detections.values() if d.column]
+        fallback = detect_by_content(
+            rows, headers, "input", INPUT_CANDIDATES, exclude_columns=already_taken
+        )
+        if fallback.column is not None:
+            detections["input"] = fallback
+
+    analyses: dict[str, ColumnAnalysis] = {}
+    for name, det in detections.items():
+        if det.column:
+            analyses[name] = analyze_column(rows, det.column)
+
     notes: list[dict[str, Any]] = []
     records: list[EvalRecord] = []
     seen_inputs: set[str] = set()
@@ -73,6 +131,7 @@ def load_eval_records(input_path: Path, options: dict[str, Any]) -> list[EvalRec
     if not input_col:
         options["_raw_rows"] = rows
         options["_detections"] = detections
+        options["_analyses"] = analyses
         options["_notes"] = notes
         return []
 
@@ -121,6 +180,7 @@ def load_eval_records(input_path: Path, options: dict[str, Any]) -> list[EvalRec
 
     options["_raw_rows"] = rows
     options["_detections"] = detections
+    options["_analyses"] = analyses
     options["_notes"] = notes
     return records
 
@@ -197,6 +257,7 @@ def write_eval_artifacts(
     ctx.output_dir.mkdir(parents=True, exist_ok=True)
     task_type = options.get("task_type", "generic")
     detections: dict[str, ColumnDetection] = options.get("_detections", {})
+    analyses: dict[str, ColumnAnalysis] = options.get("_analyses", {})
     raw_rows: list[dict[str, str]] = options.get("_raw_rows", [])
     findings: list[ValidationFinding] = ctx.metadata.get("findings") or validate_eval_records(records, options)
 
@@ -209,7 +270,10 @@ def write_eval_artifacts(
     write_jsonl(dataset_path, [r.model_dump() for r in records])
     write_csv(golden_path, _golden_candidates(records))
     write_yaml(rubric_path, default_rubric(task_type))
-    write_markdown(quality_path, _render_quality_report(raw_rows, records, findings, detections))
+    write_markdown(
+        quality_path,
+        _render_quality_report(raw_rows, records, findings, detections, analyses),
+    )
     write_markdown(coverage_path, _render_coverage_report(records))
 
     return [
@@ -241,6 +305,7 @@ def _render_quality_report(
     records: list[EvalRecord],
     findings: list[ValidationFinding],
     detections: dict[str, ColumnDetection],
+    analyses: dict[str, ColumnAnalysis],
 ) -> str:
     lines: list[str] = ["# Data Quality Report", ""]
     lines.append(f"- Raw records: {len(raw_rows)}")
@@ -262,6 +327,21 @@ def _render_quality_report(
         if det.confidence and det.confidence < 0.95:
             override_hint_needed = True
     lines.append("")
+
+    if analyses:
+        lines.append("## Column Analysis")
+        lines.append("")
+        lines.append("| Field | Column | Type | Completeness | Avg length | Max length | Distinct |")
+        lines.append("|---|---|---|---:|---:|---:|---:|")
+        for name in ("input", "expected", "context"):
+            an = analyses.get(name)
+            if an is None:
+                continue
+            lines.append(
+                f"| {name} | {an.column} | {an.inferred_type} "
+                f"| {an.completeness:.2f} | {an.avg_length:.1f} | {an.max_length} | {an.distinct} |"
+            )
+        lines.append("")
 
     duplicate_count = sum(1 for f in findings if f.code == "duplicate_input")
     empty_count = sum(1 for f in findings if f.code == "empty_input")

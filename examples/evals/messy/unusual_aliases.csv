@@ -1,0 +1,5 @@
+conversation_id,user_input,ground_truth,retrieved_snippet
+U-201,How do I rotate my API key?,Rotate from Settings > API > Rotate; old key works for 24h grace.,API key rotation provides a 24-hour grace window before the old key is revoked.
+U-202,What is the rate limit?,Default is 60 requests per minute per key; raise it via support.,The platform default rate limit is 60 rpm per API key; uplift available on request.
+U-203,Does the API support webhooks?,Yes; configure them in Settings > Webhooks with HMAC verification.,Webhooks are HMAC-signed and configurable per environment.
+U-204,How do I view audit events?,Audit events are queryable via /audit endpoint or the UI Audit tab.,Audit events are exposed via the /audit endpoint and a UI tab; both share filters.

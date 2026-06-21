@@ -1,0 +1,5 @@
+id,question_text,expected_response,source_text
+W-1,Where do I download the invoice?,Invoices are available under Billing > History > Download PDF.,Invoices are PDF-rendered on demand and retained for 12 months.
+W-2,My 2FA code is not arriving.,Resend after 60 seconds; if it still fails fall back to backup codes.,2FA delivery uses an SMS provider with retries every 60s; backup codes always work.
+W-3,Can I change my email address?,Yes from Settings > Account > Email; you'll need to re-verify.,Email changes require re-verification and revoke active sessions on the old address.
+W-4,How long are logs retained?,Application logs are retained 30 days; audit logs 1 year.,Retention windows are 30 days for application logs and 365 days for audit logs.

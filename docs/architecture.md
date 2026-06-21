@@ -90,12 +90,14 @@ A pack can register in one group, the other, or both. The evals pack registers i
 
 This split exists so we can add packs that are pure CLI utilities (no canonical artifacts) without forcing them through the JobPack contract, and add packs that other code consumes programmatically (no CLI surface) without requiring a CLI registration.
 
-## 5. Eval pack v0.1 flow
+## 5. Eval pack v0.2 flow
 
 ```text
 CSV input
   ↓ load_eval_records()
     detect_column() for input/expected/context (confidence-scored, override-aware)
+    detect_by_content() fallback for input when header detection fails
+    analyze_column() for each detected column (type, completeness, length, distinct)
     deduplicate by input
     flag empty inputs and missing expected answers
   ↓ validate_eval_records()
@@ -105,20 +107,31 @@ CSV input
     golden_candidates.csv    (rows needing human review)
     rubric.yaml              (deterministic, task-keyed template)
     coverage_report.md       (task breakdown + needs-review count)
-    data_quality_report.md   (column detection table + warnings + override hint)
+    data_quality_report.md   (detection table + analysis table + warnings + override hint)
 ```
 
 The CLI is a thin wrapper: it builds a `RunContext`, calls `pack.run()`, prints the artifact table and run summary. Nothing in the CLI knows how `dataset.jsonl` is laid out.
 
-Column detection uses four confidence tiers:
+Column detection uses five confidence tiers:
 
 ```text
 1.00  manual override
-0.95  exact match (case-insensitive)
+0.95  exact match (raw or normalized: strip common prefixes/suffixes)
 0.85  token match (candidate is a token of the header)
 0.70  substring match
+0.40  content fallback (longest free-text column; input-field only)
 0.00  no match
 ```
+
+Normalization strips leading wrappers (`customer_`, `user_`, `agent_`, `the_`, ...) and trailing wrappers (`_text`, `_field`, `_value`, `_body`, ...) before re-checking against candidates. This lifts headers like `customer_question` and `request_body` from token-match (0.85) to exact-normalized-match (0.95) without expanding the candidate lists.
+
+Content fallback fires only for the input field, and only when header detection yields zero matches. It picks the column with the longest average non-empty text length, capped at 0.40 confidence so the quality report always shows it as low-confidence with an override hint.
+
+Column analysis profiles each detected column for inferred type (`text` / `short` / `category` / `numeric` / `empty`), completeness, average and max length, and distinct value count. The result is rendered as a `## Column Analysis` table in `data_quality_report.md` so reviewers can tell at a glance whether the picked column actually looks like what we expected it to be.
+
+Pack-owned candidate lists live in `tessera_evals/compiler.py`. Future packs (`tessera-rag`, `tessera-prompts`, ...) own their own candidate vocabularies; the detection mechanism in `tessera_core.detect` is generic.
+
+Sample messy CSVs covering the detection paths live under `examples/evals/messy/`: `compound_prefix.csv` (prefix normalization), `wrapper_suffix.csv` (suffix normalization), `unusual_aliases.csv` (broader candidate vocabulary), `cryptic_kb.csv` (token + normalized hits without prior knowledge of headers). All four compile correctly with no manual override.
 
 `data_quality_report.md` is honest about uncertainty: it always shows the detection table with confidence and reason, and emits a recommended-override block whenever any confidence drops below 0.95.
 

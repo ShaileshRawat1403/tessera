@@ -69,7 +69,9 @@ data_quality_report.md   column detection table + warnings + override hint
 
 ### Column detection and override
 
-The compiler auto-detects which CSV columns hold the input, expected answer, and context, with a confidence score for each. If detection is uncertain (or wrong), you can override:
+The compiler auto-detects which CSV columns hold the input, expected answer, and context, with a confidence score for each. Detection has five tiers: exact match (0.95), normalized match after stripping common prefix/suffix wrappers (0.95), token match (0.85), substring match (0.70), and a content-based fallback for the input field when header detection fails (0.40). Manual overrides always win at 1.00.
+
+If detection is uncertain or wrong, override:
 
 ```bash
 tessera evals compile \
@@ -80,7 +82,18 @@ tessera evals compile \
   --context-column policy_text
 ```
 
-Manual overrides always win.
+The `data_quality_report.md` always shows the detection table and a column analysis table (inferred type, completeness, length, distinct values) so you can verify the picked columns at a glance.
+
+Sample messy CSVs covering each detection path live under `examples/evals/messy/`:
+
+```bash
+tessera evals compile --input examples/evals/messy/compound_prefix.csv --task customer_support --output ./out/cp
+tessera evals compile --input examples/evals/messy/wrapper_suffix.csv  --task customer_support --output ./out/ws
+tessera evals compile --input examples/evals/messy/unusual_aliases.csv --task rag_qa           --output ./out/ua
+tessera evals compile --input examples/evals/messy/cryptic_kb.csv      --task customer_support --output ./out/ck
+```
+
+All four compile correctly with no override flags.
 
 ### Supported task types
 
