@@ -1,0 +1,6 @@
+id,user_message,policy,final_resolution
+T-1001,Can I get a refund after 45 days?,Refunds are allowed within 30 days unless an approved exception exists.,The customer is outside the refund window. Explain the 30-day policy and offer escalation only if an exception applies.
+T-1002,I was charged twice for my subscription.,Billing errors should be verified against transaction history before refund or credit.,Acknowledge the billing issue, ask for verification if needed, and route to billing review.
+T-1003,Please cancel my plan today.,Users may cancel anytime. Access remains until the end of the billing period.,Confirm cancellation steps and explain access remains until the billing period ends.
+T-1004,Can I get a refund after 45 days?,Refunds are allowed within 30 days unless an approved exception exists.,Duplicate row for quality check.
+T-1005,My app is crashing after login.,Technical issues require collecting device and version details before escalation.,

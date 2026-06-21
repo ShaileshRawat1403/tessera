@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "systemsdk-evals"
+version = "0.1.0"
+description = "Eval job pack for SystemSDK: compile messy data into eval-ready assets."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "SystemSDK" }]
+dependencies = [
+  "systemsdk-core>=0.1.0",
+  "typer>=0.12",
+  "rich>=13.7",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+]
+
+[project.entry-points."systemsdk.commands"]
+evals = "systemsdk_evals.cli:register"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/systemsdk_evals"]

@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "systemsdk-core"
+version = "0.1.0"
+description = "Core runtime for reusable AI and engineering workflow SDK tools."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "SystemSDK" }]
+dependencies = [
+  "typer>=0.12",
+  "rich>=13.7",
+  "pydantic>=2.7",
+  "pyyaml>=6.0",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+]
+
+[project.scripts]
+systemsdk = "systemsdk_core.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/systemsdk_core"]
