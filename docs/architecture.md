@@ -88,6 +88,13 @@ tessera-repo
   hygiene validator (readme/license/tests/ci signals, large files)
   files index, aggregate map JSON, catalog, validation, coverage, dependencies report
   RepoPack: implements JobPack
+
+tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
+  detect (which packs apply to a project directory)
+  orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
+  markdown (small stdlib Markdown -> HTML renderer)
+  dashboard (self-contained index.html from a run output directory)
+  registers tessera run / detect / dashboard under tessera.commands only
 ```
 
 Rule: core never imports from any pack. Packs depend on core. New packs follow the same shape.
@@ -396,6 +403,35 @@ Two design notes carried over from the rest of the suite:
 - **Manifest parsing is best-effort and dependency-light.** It uses stdlib `tomllib` when available (Python 3.11+) and a regex fallback on 3.10, and a manifest that cannot be parsed yields an empty dependency list rather than a hard error. Declared dependencies are informational surface, not a contract to enforce.
 
 Contract note: eighth implementer, unchanged `JobPack` lifecycle. The walk, classification, manifest parsing, and signal computation all live in `normalize`; the hygiene rules live in `validate`. Core was not touched. Eight packs across flat rows, files, folders, a graph, a corpus, and now a whole repository tree all ride the same v0.1 contract.
+
+## 5i. The app: orchestration layer and the payoff of two plugin groups
+
+`tessera-app` is the unifying surface over the hub. It is deliberately **not** a JobPack: it registers only under `tessera.commands`, and it consumes JobPacks through `load_jobpacks()`. This is the first real use of the two-group split introduced in section 4 — until now every pack registered in both groups, so the distinction was latent. The app validates it: a pure-CLI extension that orchestrates the workflow packs without implementing the workflow contract.
+
+```text
+tessera run --input <project>
+  ↓ detect_packs()
+    inspect the project tree (ignoring build/vendor dirs) and decide which packs
+    apply: prompt files -> prompts, SKILL.md -> skills, .recipe.md -> recipes,
+    curl files -> api, corpus/ + queries -> rag, a CSV -> evals (task generic),
+    source/manifest -> repo
+  ↓ run_project()
+    load_jobpacks(); for each detection, run pack.run(input, ctx, options) into
+    output/<pack>/; never raise on a single pack's failure (record and continue);
+    write run_manifest.json summarizing record/finding/error counts + artifacts
+  ↓ build_dashboard()
+    render output/index.html: headline cards + per-pack sections, each pack's
+    Markdown reports converted to HTML by a small stdlib renderer
+```
+
+Design properties:
+
+- **Fault isolation.** `run_project` wraps each pack in try/except. One pack erroring (a malformed CSV, an empty corpus) is reported in the run table and the dashboard, but the other packs still run and the dashboard still builds. The orchestrator's job is to never let one bad input sink the whole run.
+- **Self-contained output.** The dashboard is a single HTML file with inline CSS and no JavaScript or external assets. It can be committed to a repo, emailed, or served as a static file. A test asserts the absence of any `http(s)://` reference and any `<script>` tag.
+- **No new dependencies.** The Markdown-to-HTML renderer is ~80 lines of stdlib (`re` + `html`), tuned to the exact subset the pack reports use (ATX headings, pipe tables, bullet lists, fenced code, bold, inline code). The hub gains a dashboard without taking on a Markdown library.
+- **Re-derivable.** `tessera dashboard --input <run>` rebuilds the HTML from the run directory alone (it reads `run_manifest.json` plus each pack's artifacts), so the view is never the source of truth — the artifacts are.
+
+This is where "SDKs as leverage" becomes legible end to end: one command turns a messy project directory into a browsable report spanning evals, prompts, skills, recipes, api, rag, and repo, with each pack still independently usable on its own.
 
 ## 6. Schema and type policy
 

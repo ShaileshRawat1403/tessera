@@ -22,6 +22,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 | `tessera-api` | Parse curl/HTTP traces into a validated, secret-redacted API surface map (redaction at parse time, no request execution). |
 | `tessera-rag` | Compile a corpus + queries into a validated retrieval eval dataset (verified doc references, gold retrieval targets; no retrieval execution). |
 | `tessera-repo` | Map a repository into a validated structural artifact (file inventory, language/layout map, dependency surface, hygiene signals; no code execution). |
+| `tessera-app` | The unifying app: detect which packs apply to a project, run them, and build one self-contained HTML dashboard. CLI-only plugin (orchestrates JobPacks, is not one). |
 
 Future packs follow the same JobPack contract; they do not require changes to core.
 
@@ -41,8 +42,18 @@ pip install -e packages/tessera-core \
             -e packages/tessera-recipes \
             -e packages/tessera-api \
             -e packages/tessera-rag \
-            -e packages/tessera-repo
+            -e packages/tessera-repo \
+            -e packages/tessera-app
 ```
+
+## Run the whole hub over a project (the app)
+
+```bash
+tessera detect --input .              # which packs apply, without running
+tessera run --input . --output run    # run applicable packs + build a dashboard
+```
+
+`tessera run` detects which packs fit the project (prompt files → prompts, `SKILL.md` → skills, curl files → api, a corpus + queries → rag, source/manifest → repo, a CSV → evals, ...), runs each into `run/<pack>/`, and writes `run/index.html` — a self-contained dashboard (no server, no JS, no external assets) aggregating every pack's reports. Rebuild the dashboard from an existing run with `tessera dashboard --input run`.
 
 ## List installed plugins
 
@@ -236,7 +247,8 @@ This pack does not execute requests; live calling/batch/streaming are deferred t
                            packages/tessera-recipes/tests \
                            packages/tessera-api/tests \
                            packages/tessera-rag/tests \
-                           packages/tessera-repo/tests
+                           packages/tessera-repo/tests \
+                           packages/tessera-app/tests
 ```
 
 ## Build wheels
@@ -251,4 +263,5 @@ python -m build packages/tessera-recipes
 python -m build packages/tessera-api
 python -m build packages/tessera-rag
 python -m build packages/tessera-repo
+python -m build packages/tessera-app
 ```
