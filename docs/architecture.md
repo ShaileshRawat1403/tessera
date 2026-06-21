@@ -55,6 +55,15 @@ tessera-skills
   description overlap detector (token Jaccard)
   catalog, validation, coverage, and dependencies reports
   SkillsPack: implements JobPack
+
+tessera-recipes
+  Recipe / RecipeStep / RecipeIO schemas (pydantic BaseModel)
+  file + folder walker
+  frontmatter + body parser
+  graph engine (reference parsing, edge inference, cycle detection, topo sort)
+  graph validator (cycles, dangling refs, reachability)
+  catalog, validation, coverage, machine plan + human execution plan
+  RecipesPack: implements JobPack
 ```
 
 Rule: core never imports from any pack. Packs depend on core. New packs follow the same shape.
@@ -213,6 +222,40 @@ Why a separate `dependencies_report.md`: skills make implicit runtime claims (th
 Why a description-overlap detector: skills are matched by an LLM against the user's intent. When two skills have similar descriptions, the wrong one fires. The overlap matrix in `dependencies_report.md` makes that risk visible at compile time.
 
 **Contract finding (verified during this branch):** `JobPack` needed no changes for the third domain either. The same `normalize → validate → generate → run` lifecycle handles a folder-of-folders input with attachments and per-record file inventories. Three real implementers from genuinely different domains (CSV rows, prompt files, skill folders) now ride the same contract unchanged. This is the strongest signal yet that the v0.1 contract is right.
+
+## 5d. Recipes pack v0.1 flow (fourth JobPack implementer, the contract's hardest test)
+
+Recipes are the richest record type in Tessera: a recipe is a workflow of steps where steps reference each other and inputs flow between them. This is a graph, not a flat record, and it is the case most likely to force a contract change. It did not.
+
+```text
+recipe directory (or single .recipe.md file)
+  ↓ load_recipe_records()
+    discover_recipe_files() walks `<name>.recipe.md` and `<name>/RECIPE.md`
+    parse_recipe_file() reads frontmatter (inputs, outputs, steps) + body
+  ↓ validate_recipe_records()
+    frontmatter: name / version / description / no_steps
+    per-step:    missing/duplicate step id, self-dependency,
+                 dangling needs, dangling ${steps.X} / ${inputs.X} references
+    graph:       cycle detection (reports the cycle path)
+    semantics:   unproduced declared outputs, unreachable steps
+  ↓ write_recipe_artifacts()
+    index.jsonl              canonical Recipe rows
+    plans.jsonl              machine plan: topo order + edges + cycle per recipe
+    index.md                 catalog with acyclic flag
+    validation_report.md     findings grouped by severity
+    coverage_report.md       step counts, acyclic ratio, tags
+    execution_plans.md       per-recipe topological order + dependency edges
+```
+
+The graph engine (`tessera_recipes/graph.py`) is the pack's distinctive piece:
+
+- **Edge inference.** A step's dependencies are the union of its explicit `needs` and the steps referenced as `${steps.X.output}` in its `inputs`. Authors can wire steps either way; the engine reconciles both.
+- **Cycle detection + topological sort.** Kahn's algorithm produces a deterministic execution order (ties broken alphabetically for reproducible artifacts). On a cycle, a DFS returns one representative cycle path for the error message.
+- **Reference integrity.** `${inputs.X}` must name a declared recipe input; `${steps.X}` must name a real step. Both are validated, not just parsed.
+
+Why this matters for the contract: the graph lives entirely inside the pack's `validate` and `generate` steps. The DAG, the topo sort, the cycle reporting — none of it leaked into `tessera-core`. Core still sees a list of records and a list of findings. The richest possible record type was absorbed by the existing lifecycle without a single new core concept.
+
+**Contract conclusion (after four packs):** Four implementers now ride the v0.1 `JobPack` contract unchanged — flat CSV rows (evals), single-file or directory prompt files (prompts), folder-of-folders with attachments (skills), and a dependency graph of steps (recipes). The contract has survived flat records, file collections, and a true graph. The v0.1 `JobPack` ABC is empirically locked; there is no pending need for a v2. Future packs should be built against it as-is, and any proposal to change it should be treated as a breaking change requiring the same bar these four packs cleared.
 
 ## 6. Schema and type policy
 
