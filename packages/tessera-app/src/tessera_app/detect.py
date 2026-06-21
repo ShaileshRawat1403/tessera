@@ -73,6 +73,12 @@ def detect_packs(project: Path) -> list[Detection]:
     if names & manifest_names or any_suffix(*source_suffixes):
         detections.append(Detection("repo", "found source files / a dependency manifest", project))
 
+    # changelog (a git repo, or a commits.jsonl)
+    if (project / ".git").exists():
+        detections.append(Detection("changelog", "found a git repository", project))
+    elif any(p.name.lower() == "commits.jsonl" for p in files):
+        detections.append(Detection("changelog", "found commits.jsonl", project))
+
     return detections
 
 
