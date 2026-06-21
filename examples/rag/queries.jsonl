@@ -1,0 +1,4 @@
+{"id": "q1", "query": "Can I get a refund after 45 days?", "expected_answer": "No. Refunds are only within 30 days unless an approved exception applies.", "relevant_docs": ["refunds"], "tags": ["billing", "refunds"]}
+{"id": "q2", "query": "I was charged twice for the same order.", "expected_answer": "Duplicate charges are credited automatically once confirmed against transaction history.", "relevant_docs": ["billing/disputes", "refunds"], "tags": ["billing"]}
+{"id": "q3", "query": "If I cancel mid-month do I get money back for the rest of the month?", "expected_answer": "No partial-period refunds on cancellation; access lasts until the end of the billing period.", "relevant_docs": ["cancellation"], "tags": ["cancellation"]}
+{"id": "q4", "query": "What counts as an approved refund exception?", "relevant_docs": ["refunds"], "tags": ["refunds"]}

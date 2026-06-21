@@ -20,8 +20,9 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 | `tessera-skills` | Validate and catalog Anthropic-style `SKILL.md` skill collections (with file inventory, dep extraction, and description overlap detection). |
 | `tessera-recipes` | Compile multi-step workflow recipes into validated, dependency-ordered execution plans (DAG validation: cycles, dangling refs, topological order). |
 | `tessera-api` | Parse curl/HTTP traces into a validated, secret-redacted API surface map (redaction at parse time, no request execution). |
+| `tessera-rag` | Compile a corpus + queries into a validated retrieval eval dataset (verified doc references, gold retrieval targets; no retrieval execution). |
 
-Future packs (RAG, repo mapping) follow the same JobPack contract; they do not require changes to core.
+Future packs (repo mapping, ...) follow the same JobPack contract; they do not require changes to core.
 
 > **Naming:** the PyPI distribution names are prefixed `tesserakit-` (e.g. `pip install tesserakit-core`) because `tessera-core` was already taken on PyPI. The import names and CLI are unaffected: you still `import tessera_core` and run `tessera`. So `tesserakit-evals` installs the `tessera_evals` package and contributes to the `tessera` CLI.
 
@@ -37,7 +38,8 @@ pip install -e packages/tessera-core \
             -e packages/tessera-prompts \
             -e packages/tessera-skills \
             -e packages/tessera-recipes \
-            -e packages/tessera-api
+            -e packages/tessera-api \
+            -e packages/tessera-rag
 ```
 
 ## List installed plugins
@@ -230,7 +232,8 @@ This pack does not execute requests; live calling/batch/streaming are deferred t
                            packages/tessera-prompts/tests \
                            packages/tessera-skills/tests \
                            packages/tessera-recipes/tests \
-                           packages/tessera-api/tests
+                           packages/tessera-api/tests \
+                           packages/tessera-rag/tests
 ```
 
 ## Build wheels
@@ -243,4 +246,5 @@ python -m build packages/tessera-prompts
 python -m build packages/tessera-skills
 python -m build packages/tessera-recipes
 python -m build packages/tessera-api
+python -m build packages/tessera-rag
 ```
