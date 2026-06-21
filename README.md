@@ -110,6 +110,23 @@ All four compile correctly with no override flags.
 
 Each task type has its own deterministic rubric template (dimensions, must, must-not). Unknown task types fall back to `generic`. LLM-based rubric enrichment is intentionally not in v0.1.
 
+### Export to eval frameworks
+
+A canonical `dataset.jsonl` exports to framework-native interchange files. Tessera emits each target's documented format; it does not import the frameworks.
+
+```bash
+tessera evals export --input ./out/eval_pack/dataset.jsonl --target all --output ./out/export
+```
+
+| Target | File | Shape |
+|---|---|---|
+| `deepeval` | `deepeval_goldens.json` | `{goldens: [{input, expected_output, context}]}` |
+| `ragas` | `ragas_dataset.jsonl` | `{question, ground_truth, contexts}` per line |
+| `openai-evals` | `openai_evals_samples.jsonl` | `{input: [chat messages], ideal}` per line |
+| `langsmith` | `langsmith_examples.jsonl` | `{inputs, outputs}` per line |
+
+Use `--target deepeval` (etc.) for a single framework, or `--target all`.
+
 ## Compile a prompt catalog
 
 ```bash

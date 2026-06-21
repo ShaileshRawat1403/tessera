@@ -61,5 +61,33 @@ def compile_cmd(
     console.print(summary)
 
 
+@evals_app.command("export")
+def export_cmd(
+    input: Path = typer.Option(..., "--input", "-i", exists=True, readable=True, help="A canonical dataset.jsonl (the output of `evals compile`)."),
+    target: str = typer.Option("all", "--target", help="deepeval | ragas | openai-evals | langsmith | all."),
+    output: Path = typer.Option(Path("eval_export"), "--output", "-o", help="Output directory."),
+) -> None:
+    """Export a canonical eval dataset to framework-native interchange files."""
+    from tessera_evals.adapters import TARGETS, export, export_all, load_dataset
+
+    records = load_dataset(input)
+
+    target = target.lower()
+    if target == "all":
+        paths = export_all(records, output)
+    elif target in TARGETS:
+        paths = [export(records, target, output)]
+    else:
+        console.print(f"[red]Unknown target '{target}'. Choose from: {', '.join(TARGETS)}, all.[/red]")
+        raise typer.Exit(code=2)
+
+    table = Table(title="Eval Export")
+    table.add_column("Target file")
+    table.add_column("Records")
+    for p in paths:
+        table.add_row(str(p), str(len(records)))
+    console.print(table)
+
+
 def register(root_app: typer.Typer) -> None:
     root_app.add_typer(evals_app, name="evals")
