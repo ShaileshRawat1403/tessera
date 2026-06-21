@@ -3,7 +3,7 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "tessera-core"
+name = "tesserakit-core"
 version = "0.1.0"
 description = "Core runtime for reusable AI and engineering workflow SDK tools."
 readme = "README.md"

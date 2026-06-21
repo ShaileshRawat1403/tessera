@@ -3,14 +3,14 @@ requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
 [project]
-name = "tessera-api"
+name = "tesserakit-api"
 version = "0.1.0"
 description = "API job pack for Tessera: parse curl/HTTP traces into a validated, secret-redacted API surface map."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Tessera" }]
 dependencies = [
-  "tessera-core>=0.1.0",
+  "tesserakit-core>=0.1.0",
   "typer>=0.12",
   "rich>=13.7",
   "pydantic>=2.7",

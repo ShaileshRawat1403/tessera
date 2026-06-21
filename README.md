@@ -23,6 +23,8 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 
 Future packs (RAG, repo mapping) follow the same JobPack contract; they do not require changes to core.
 
+> **Naming:** the PyPI distribution names are prefixed `tesserakit-` (e.g. `pip install tesserakit-core`) because `tessera-core` was already taken on PyPI. The import names and CLI are unaffected: you still `import tessera_core` and run `tessera`. So `tesserakit-evals` installs the `tessera_evals` package and contributes to the `tessera` CLI.
+
 ## Local setup
 
 ```bash
