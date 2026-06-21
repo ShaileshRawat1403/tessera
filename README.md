@@ -22,6 +22,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 | `tessera-api` | Parse curl/HTTP traces into a validated, secret-redacted API surface map (redaction at parse time, no request execution). |
 | `tessera-rag` | Compile a corpus + queries into a validated retrieval eval dataset (verified doc references, gold retrieval targets; no retrieval execution). |
 | `tessera-repo` | Map a repository into a validated structural artifact (file inventory, language/layout map, dependency surface, hygiene signals; no code execution). |
+| `tessera-changelog` | Turn git history (or a `commits.jsonl`) into a structured `CHANGELOG.md` + release notes via Conventional Commits parsing. |
 | `tessera-app` | The unifying app: detect which packs apply to a project, run them, and build one self-contained HTML dashboard. CLI-only plugin (orchestrates JobPacks, is not one). |
 
 Future packs follow the same JobPack contract; they do not require changes to core.
@@ -43,6 +44,7 @@ pip install -e packages/tessera-core \
             -e packages/tessera-api \
             -e packages/tessera-rag \
             -e packages/tessera-repo \
+            -e packages/tessera-changelog \
             -e packages/tessera-app
 ```
 
@@ -248,7 +250,8 @@ This pack does not execute requests; live calling/batch/streaming are deferred t
                            packages/tessera-api/tests \
                            packages/tessera-rag/tests \
                            packages/tessera-repo/tests \
-                           packages/tessera-app/tests
+                           packages/tessera-app/tests \
+                           packages/tessera-changelog/tests
 ```
 
 ## Build wheels
@@ -264,4 +267,5 @@ python -m build packages/tessera-api
 python -m build packages/tessera-rag
 python -m build packages/tessera-repo
 python -m build packages/tessera-app
+python -m build packages/tessera-changelog
 ```

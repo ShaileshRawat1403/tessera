@@ -89,6 +89,14 @@ tessera-repo
   files index, aggregate map JSON, catalog, validation, coverage, dependencies report
   RepoPack: implements JobPack
 
+tessera-changelog
+  Commit schema (pydantic BaseModel)
+  conventional-commit parser (type/scope/breaking/PR)
+  git log reader (read-only subprocess) + commits.jsonl fallback
+  hygiene validator (non-conventional, WIP, breaking, empty subject)
+  commits index, CHANGELOG.md, release notes, validation, coverage
+  ChangelogPack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -432,6 +440,31 @@ Design properties:
 - **Re-derivable.** `tessera dashboard --input <run>` rebuilds the HTML from the run directory alone (it reads `run_manifest.json` plus each pack's artifacts), so the view is never the source of truth — the artifacts are.
 
 This is where "SDKs as leverage" becomes legible end to end: one command turns a messy project directory into a browsable report spanning evals, prompts, skills, recipes, api, rag, and repo, with each pack still independently usable on its own.
+
+## 5j. Changelog pack v0.1 (git history -> structured changelog)
+
+The changelog pack turns commit history into a grouped `CHANGELOG.md` and release notes. It has two input sources behind one `normalize`: a git repository (read via a read-only `git log --no-merges` subprocess) or a portable `commits.jsonl`. The git path is the only place in the whole hub that shells out, and it does so read-only against version-control metadata: no project code runs, no network is touched, consistent with the no-execution discipline everywhere else.
+
+```text
+git repo or commits.jsonl
+  ↓ load_changelog_records()
+    git source: `git log` with \x1f/\x1e field/record separators (collision-safe)
+    jsonl source: parse each line
+    parse_subject(): Conventional Commits -> type / scope / breaking / PR number
+  ↓ validate_changelog_records()
+    source_error, no_commits, empty_subject, non_conventional_commit (info),
+    wip_commit, breaking_change
+  ↓ write_artifacts()
+    commits.jsonl            canonical Commit rows
+    CHANGELOG.md             grouped by type, Breaking Changes section first
+    release_notes.md         prose summary with highlights
+    validation_report.md     commit-hygiene findings
+    coverage_report.md       type distribution, % conventional, authors
+```
+
+The portable `commits.jsonl` input is deliberate: it keeps the pack testable without a git fixture, and it mirrors the inter-pack interchange pattern — a future pack could emit commit records that this one consumes. The `\x1f`/`\x1e` separators in the git format string avoid the classic bug where a commit subject containing the delimiter corrupts parsing.
+
+Contract note: ninth JobPack implementer, unchanged lifecycle. The git subprocess and the conventional-commit parser live in `normalize`; the hygiene rules in `validate`. Core untouched.
 
 ## 6. Schema and type policy
 
