@@ -72,6 +72,14 @@ tessera-api
   hygiene validator (insecure scheme, secret-in-URL, no-auth, duplicates)
   catalog, validation, coverage, redactions audit report
   ApiPack: implements JobPack
+
+tessera-rag
+  RagDocument / RagQuery / RagCase schemas (pydantic BaseModel)
+  corpus loader (walk corpus/, doc id = relative path without suffix, sha256)
+  queries loader (jsonl or yaml)
+  reference validator (dangling doc refs, orphan docs, missing targets/answers)
+  dataset, corpus index, validation, coverage, retrieval-targets report
+  RagPack: implements JobPack
 ```
 
 Rule: core never imports from any pack. Packs depend on core. New packs follow the same shape.
@@ -316,6 +324,36 @@ Redaction-first design (the load-bearing safety property):
 Live request execution (the API caller, batch runner, streaming response capture) is intentionally **out of scope for v0.1**, the same way LLM rubric enrichment is deferred in evals. v0.1 is the offline, side-effect-free pass. When execution lands, it will be a separate opt-in path with its own network and secret-handling considerations; the offline canonicalization here is the foundation it will build on.
 
 Contract note: the api pack rides the same `JobPack` lifecycle as the other five. Parsing, redaction, and validation all live inside `normalize`/`validate`; nothing about secrets or curl reached `tessera-core`.
+
+## 5g. RAG pack v0.1 flow (corpus + queries -> retrieval eval dataset)
+
+The rag pack builds a canonical retrieval eval dataset from a document corpus and a set of queries, verifying that every query's gold document references actually exist.
+
+```text
+input directory (corpus/ + queries.jsonl|.yaml)
+  ↓ load_rag_records()
+    load_corpus() walks corpus/, each doc id = corpus-relative path w/o suffix,
+                  captures title (first H1), char/word counts, sha256
+    parse queries (jsonl or yaml) into RagQuery, then RagCase
+                  (query + expected_answer + relevant_doc_ids + review_status)
+  ↓ validate_rag_records()
+    corpus:  empty_corpus, empty_document, duplicate_doc_id
+    queries: missing_query_text, duplicate_query
+    refs:    dangling_doc_reference (query points at a doc not in corpus),
+             query_without_relevant_docs (no retrieval target),
+             query_without_expected_answer (needs human review)
+    corpus reachability: orphan_document (no query references it)
+  ↓ write_artifacts()
+    dataset.jsonl            canonical RagCase rows
+    corpus_index.jsonl       RagDocument rows (id, title, counts, sha256)
+    validation_report.md     findings grouped by severity
+    coverage_report.md       answer/target coverage, orphan count, avg targets
+    retrieval_targets.md     per-query gold document set with titles
+```
+
+Like the api pack (no HTTP execution) and evals (no LLM calls), the rag pack does **no retrieval**: no embeddings, no vector store, no scoring. v0.1 produces the validated, internally-consistent dataset a retriever would later be scored against. The defining property here is referential integrity — `dangling_doc_reference` catches a query whose gold target does not exist in the corpus, which would otherwise silently corrupt any retrieval metric computed downstream. The `sha256` per document gives a stable content fingerprint for future corpus-versioning and change detection.
+
+Contract note: the rag pack is the seventh implementer (counting the in-core example pack) and rides the unchanged `JobPack` lifecycle. The corpus walk, the dual jsonl/yaml query loader, and the cross-reference validation all live inside `normalize`/`validate`; core was not touched.
 
 ## 6. Schema and type policy
 

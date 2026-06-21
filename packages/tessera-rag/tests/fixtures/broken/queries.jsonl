@@ -1,0 +1,3 @@
+{"id": "q1", "query": "Something about the present doc?", "expected_answer": "Yes.", "relevant_docs": ["present"]}
+{"id": "q2", "query": "References a doc that does not exist.", "expected_answer": "n/a", "relevant_docs": ["ghost_doc"]}
+{"id": "q3", "query": "Has no retrieval target at all."}
