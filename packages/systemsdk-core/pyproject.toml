@@ -12,7 +12,6 @@ authors = [{ name = "SystemSDK" }]
 dependencies = [
   "typer>=0.12",
   "rich>=13.7",
-  "pydantic>=2.7",
   "pyyaml>=6.0",
 ]
 classifiers = [
@@ -24,6 +23,12 @@ classifiers = [
 
 [project.scripts]
 systemsdk = "systemsdk_core.cli:main"
+
+[project.entry-points."systemsdk.jobpacks"]
+example = "systemsdk_core.example_pack:create_pack"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/systemsdk_core"]
