@@ -3,158 +3,307 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 from systemsdk_core.artifacts import write_csv, write_jsonl, write_markdown, write_yaml
-from systemsdk_core.models import QualityFinding
+from systemsdk_core.detect import ColumnDetection, detect_column
+from systemsdk_core.models import Artifact, RunContext, ValidationFinding
 
-from systemsdk_evals.schema import CompileOptions, EvalRecord
+from systemsdk_evals.rubrics import default_rubric
+from systemsdk_evals.schema import EvalRecord
 
-INPUT_CANDIDATES = ["question", "query", "input", "prompt", "user_message", "message", "text"]
-EXPECTED_CANDIDATES = ["golden_answer", "expected", "expected_answer", "answer", "approved_answer", "final_resolution"]
-CONTEXT_CANDIDATES = ["context", "source", "policy", "document", "source_text", "retrieved_context"]
+INPUT_CANDIDATES = [
+    "question",
+    "query",
+    "input",
+    "prompt",
+    "user_message",
+    "message",
+    "text",
+]
+EXPECTED_CANDIDATES = [
+    "golden_answer",
+    "expected",
+    "expected_answer",
+    "answer",
+    "approved_answer",
+    "final_resolution",
+    "resolution",
+    "response",
+]
+CONTEXT_CANDIDATES = [
+    "context",
+    "source",
+    "policy",
+    "document",
+    "source_text",
+    "retrieved_context",
+]
 
 
-def load_csv(path: Path) -> list[dict[str, str]]:
+def _load_csv(path: Path) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8-sig") as f:
         return list(csv.DictReader(f))
 
 
-def pick_column(headers: list[str], preferred: str | None, candidates: list[str]) -> str | None:
-    if preferred and preferred in headers:
-        return preferred
-    normalized = {h.lower().strip(): h for h in headers}
-    for c in candidates:
-        if c in normalized:
-            return normalized[c]
-    return None
+def load_eval_records(input_path: Path, options: dict[str, Any]) -> list[EvalRecord]:
+    """Detect columns, deduplicate, and build EvalRecord objects.
 
-
-def compile_rows(rows: list[dict[str, str]], options: CompileOptions) -> tuple[list[EvalRecord], list[dict[str, Any]], list[QualityFinding]]:
+    Side effect: stores raw rows, detections, and per-row notes in ``options``
+    under private keys so validate_eval_records and write_eval_artifacts can
+    reuse them without re-parsing the CSV.
+    """
+    rows = _load_csv(input_path)
     headers = list(rows[0].keys()) if rows else []
-    input_col = pick_column(headers, options.input_column, INPUT_CANDIDATES)
-    expected_col = pick_column(headers, options.expected_column, EXPECTED_CANDIDATES)
-    context_col = pick_column(headers, options.context_column, CONTEXT_CANDIDATES)
+    task_type = options.get("task_type", "generic")
 
-    findings: list[QualityFinding] = []
-    if not input_col:
-        findings.append(QualityFinding(level="error", code="missing_input_column", message="No input/question column was detected."))
-        return [], [], findings
+    detections: dict[str, ColumnDetection] = {
+        "input": detect_column(headers, "input", INPUT_CANDIDATES, options.get("input_column")),
+        "expected": detect_column(headers, "expected", EXPECTED_CANDIDATES, options.get("expected_column")),
+        "context": detect_column(headers, "context", CONTEXT_CANDIDATES, options.get("context_column")),
+    }
 
+    notes: list[dict[str, Any]] = []
     records: list[EvalRecord] = []
-    golden_candidates: list[dict[str, Any]] = []
     seen_inputs: set[str] = set()
+
+    input_col = detections["input"].column
+    expected_col = detections["expected"].column
+    context_col = detections["context"].column
+
+    if not input_col:
+        options["_raw_rows"] = rows
+        options["_detections"] = detections
+        options["_notes"] = notes
+        return []
 
     for idx, row in enumerate(rows, start=1):
         source_id = row.get("id") or row.get("ticket_id") or row.get("conversation_id") or f"row_{idx}"
+        source_id = str(source_id)
         user_input = (row.get(input_col) or "").strip()
         expected_text = (row.get(expected_col) or "").strip() if expected_col else ""
         context_text = (row.get(context_col) or "").strip() if context_col else ""
 
         if not user_input:
-            findings.append(QualityFinding(level="warning", code="empty_input", message="Input is empty.", record_id=str(source_id)))
+            notes.append({"row": idx, "id": source_id, "code": "empty_input"})
             continue
 
-        if user_input.lower() in seen_inputs:
-            findings.append(QualityFinding(level="warning", code="duplicate_input", message="Duplicate input detected.", record_id=str(source_id)))
+        key = user_input.lower()
+        if key in seen_inputs:
+            notes.append({"row": idx, "id": source_id, "code": "duplicate_input"})
             continue
-        seen_inputs.add(user_input.lower())
+        seen_inputs.add(key)
 
-        expected: dict[str, Any]
         if expected_text:
-            expected = {"mode": "reference", "reference_answer": expected_text, "review_status": "source_extracted"}
+            expected = {
+                "mode": "reference",
+                "reference_answer": expected_text,
+                "review_status": "source_extracted",
+            }
         else:
-            expected = {"mode": options.golden_mode, "reference_answer": "", "review_status": "needs_human_review"}
-            findings.append(QualityFinding(level="warning", code="missing_expected_answer", message="No expected answer found; candidate review required.", record_id=str(source_id)))
+            expected = {
+                "mode": options.get("golden_mode", "candidate"),
+                "reference_answer": "",
+                "review_status": "needs_human_review",
+            }
+            notes.append({"row": idx, "id": source_id, "code": "missing_expected_answer"})
 
-        record = EvalRecord(
-            id=str(source_id),
-            task_type=options.task_type,
-            input={"user_message": user_input},
-            context={"source_text": context_text} if context_text else {},
-            expected=expected,
-            rubric=default_rubric(options.task_type),
-            metadata={"source_row": idx, "raw_id": str(source_id)},
+        records.append(
+            EvalRecord(
+                id=source_id,
+                task_type=task_type,
+                input={"user_message": user_input},
+                context={"source_text": context_text} if context_text else {},
+                expected=expected,
+                rubric=default_rubric(task_type),
+                metadata={"source_row": idx, "raw_id": source_id},
+            )
         )
-        records.append(record)
-        golden_candidates.append({
-            "id": record.id,
-            "input": user_input,
-            "candidate_golden_answer": expected_text,
-            "source_evidence": context_text,
-            "review_status": expected["review_status"],
-        })
 
-    return records, golden_candidates, findings
+    options["_raw_rows"] = rows
+    options["_detections"] = detections
+    options["_notes"] = notes
+    return records
 
 
-def default_rubric(task_type: str) -> dict[str, Any]:
-    return {
-        "task_type": task_type,
-        "dimensions": [
-            "correctness",
-            "completeness",
-            "groundedness",
-            "safety_or_policy_fit",
-        ],
-        "must": [
-            "answer the user request directly",
-            "use available context when context is provided",
-            "avoid unsupported claims",
-        ],
-        "must_not": [
-            "invent facts not present in the input or context",
-            "ignore explicit user constraints",
-        ],
+def validate_eval_records(
+    records: list[EvalRecord],
+    options: dict[str, Any],
+) -> list[ValidationFinding]:
+    """Turn per-row notes and detection failures into ValidationFinding objects."""
+    findings: list[ValidationFinding] = []
+    detections: dict[str, ColumnDetection] = options.get("_detections", {})
+
+    input_det = detections.get("input")
+    if input_det is None or input_det.column is None:
+        findings.append(
+            ValidationFinding(
+                severity="error",
+                code="missing_input_column",
+                message="No input/question column was detected. Use --input-column to override.",
+                field="input",
+            )
+        )
+
+    for field_name in ("expected", "context"):
+        det = detections.get(field_name)
+        if det and det.column is None:
+            findings.append(
+                ValidationFinding(
+                    severity="info",
+                    code=f"missing_{field_name}_column",
+                    message=f"No {field_name} column was detected.",
+                    field=field_name,
+                )
+            )
+        elif det and 0 < det.confidence < 0.85:
+            findings.append(
+                ValidationFinding(
+                    severity="warning",
+                    code=f"low_confidence_{field_name}_column",
+                    message=(
+                        f"{field_name.capitalize()} column '{det.column}' detected at "
+                        f"confidence {det.confidence:.2f}. Use --{field_name}-column to override."
+                    ),
+                    field=field_name,
+                    metadata={"confidence": det.confidence, "reason": det.reason},
+                )
+            )
+
+    message_map = {
+        "empty_input": "Input is empty.",
+        "duplicate_input": "Duplicate input dropped.",
+        "missing_expected_answer": "No expected answer found; row requires human review.",
     }
+    for note in options.get("_notes", []):
+        findings.append(
+            ValidationFinding(
+                severity="warning",
+                code=note["code"],
+                message=message_map.get(note["code"], note["code"]),
+                field=None,
+                metadata={"row": note["row"], "id": note["id"]},
+            )
+        )
+
+    return findings
 
 
-def write_eval_pack(input_path: Path, output_dir: Path, task_type: str, input_column: str | None = None, expected_column: str | None = None, context_column: str | None = None) -> dict[str, Path | int]:
-    rows = load_csv(input_path)
-    options = CompileOptions(
-        task_type=task_type,
-        input_column=input_column,
-        expected_column=expected_column,
-        context_column=context_column,
-    )
-    records, golden_candidates, findings = compile_rows(rows, options)
+def write_eval_artifacts(
+    records: list[EvalRecord],
+    ctx: RunContext,
+    options: dict[str, Any],
+) -> list[Artifact]:
+    """Write dataset, golden candidates, rubric, and quality plus coverage reports."""
+    ctx.output_dir.mkdir(parents=True, exist_ok=True)
+    task_type = options.get("task_type", "generic")
+    detections: dict[str, ColumnDetection] = options.get("_detections", {})
+    raw_rows: list[dict[str, str]] = options.get("_raw_rows", [])
+    findings: list[ValidationFinding] = ctx.metadata.get("findings") or validate_eval_records(records, options)
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    dataset_path = output_dir / "dataset.jsonl"
-    golden_path = output_dir / "golden_candidates.csv"
-    rubric_path = output_dir / "rubric.yaml"
-    quality_path = output_dir / "data_quality_report.md"
-    coverage_path = output_dir / "coverage_report.md"
+    dataset_path = ctx.output_dir / "dataset.jsonl"
+    golden_path = ctx.output_dir / "golden_candidates.csv"
+    rubric_path = ctx.output_dir / "rubric.yaml"
+    quality_path = ctx.output_dir / "data_quality_report.md"
+    coverage_path = ctx.output_dir / "coverage_report.md"
 
     write_jsonl(dataset_path, [r.model_dump() for r in records])
-    write_csv(golden_path, golden_candidates)
+    write_csv(golden_path, _golden_candidates(records))
     write_yaml(rubric_path, default_rubric(task_type))
-    write_markdown(quality_path, render_quality_report(rows, records, findings))
-    write_markdown(coverage_path, render_coverage_report(records))
+    write_markdown(quality_path, _render_quality_report(raw_rows, records, findings, detections))
+    write_markdown(coverage_path, _render_coverage_report(records))
 
-    return {
-        "raw_records": len(rows),
-        "compiled_records": len(records),
-        "findings": len(findings),
-        "dataset": dataset_path,
-        "golden_candidates": golden_path,
-        "rubric": rubric_path,
-        "quality_report": quality_path,
-        "coverage_report": coverage_path,
-    }
+    return [
+        Artifact(name="dataset.jsonl", path=dataset_path, kind="jsonl"),
+        Artifact(name="golden_candidates.csv", path=golden_path, kind="csv"),
+        Artifact(name="rubric.yaml", path=rubric_path, kind="yaml"),
+        Artifact(name="coverage_report.md", path=coverage_path, kind="markdown"),
+        Artifact(name="data_quality_report.md", path=quality_path, kind="markdown"),
+    ]
 
 
-def render_quality_report(rows: list[dict[str, str]], records: list[EvalRecord], findings: list[QualityFinding]) -> str:
-    lines = ["# Data Quality Report", "", f"Raw records: {len(rows)}", f"Compiled records: {len(records)}", f"Findings: {len(findings)}", ""]
-    if findings:
-        lines.append("## Findings")
-        for finding in findings:
-            rid = f" `{finding.record_id}`" if finding.record_id else ""
-            lines.append(f"- **{finding.level.upper()}** `{finding.code}`{rid}: {finding.message}")
-    return "\n".join(lines) + "\n"
+def _golden_candidates(records: list[EvalRecord]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for record in records:
+        out.append(
+            {
+                "id": record.id,
+                "input": record.input.get("user_message", ""),
+                "candidate_golden_answer": record.expected.get("reference_answer", ""),
+                "source_evidence": record.context.get("source_text", ""),
+                "review_status": record.expected.get("review_status", ""),
+            }
+        )
+    return out
 
 
-def render_coverage_report(records: list[EvalRecord]) -> str:
+def _render_quality_report(
+    raw_rows: list[dict[str, str]],
+    records: list[EvalRecord],
+    findings: list[ValidationFinding],
+    detections: dict[str, ColumnDetection],
+) -> str:
+    lines: list[str] = ["# Data Quality Report", ""]
+    lines.append(f"- Raw records: {len(raw_rows)}")
+    lines.append(f"- Compiled records: {len(records)}")
+    lines.append(f"- Findings: {len(findings)}")
+    lines.append("")
+
+    lines.append("## Column Detection")
+    lines.append("")
+    lines.append("| Field | Column | Confidence | Reason |")
+    lines.append("|---|---|---:|---|")
+    override_hint_needed = False
+    for name in ("input", "expected", "context"):
+        det = detections.get(name)
+        if det is None:
+            continue
+        column = det.column or "(none)"
+        lines.append(f"| {name} | {column} | {det.confidence:.2f} | {det.reason} |")
+        if det.confidence and det.confidence < 0.95:
+            override_hint_needed = True
+    lines.append("")
+
+    duplicate_count = sum(1 for f in findings if f.code == "duplicate_input")
+    empty_count = sum(1 for f in findings if f.code == "empty_input")
+    needs_review = sum(1 for f in findings if f.code == "missing_expected_answer")
+
+    lines.append("## Summary")
+    lines.append("")
+    lines.append(f"- Duplicates dropped: {duplicate_count}")
+    lines.append(f"- Empty inputs dropped: {empty_count}")
+    lines.append(f"- Rows needing human review: {needs_review}")
+    lines.append("")
+
+    warnings_and_errors = [f for f in findings if f.severity in ("warning", "error")]
+    if warnings_and_errors:
+        lines.append("## Warnings")
+        lines.append("")
+        for f in warnings_and_errors[:50]:
+            field_part = f" [{f.field}]" if f.field else ""
+            lines.append(f"- **{f.severity.upper()}** `{f.code}`{field_part}: {f.message}")
+        if len(warnings_and_errors) > 50:
+            lines.append(f"- ... {len(warnings_and_errors) - 50} more warnings omitted")
+        lines.append("")
+
+    if override_hint_needed:
+        lines.append("## Recommended Override")
+        lines.append("")
+        lines.append("If any detected column is wrong, rerun with explicit flags:")
+        lines.append("")
+        lines.append("```bash")
+        cmd = ["systemsdk evals compile", "  --input <path>", "  --task <task_type>"]
+        for name in ("input", "expected", "context"):
+            det = detections.get(name)
+            if det and det.column:
+                cmd.append(f"  --{name}-column {det.column}")
+        lines.append(" \\\n".join(cmd))
+        lines.append("```")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def _render_coverage_report(records: list[EvalRecord]) -> str:
     by_task: dict[str, int] = {}
     needs_review = 0
     for record in records:
