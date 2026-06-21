@@ -1,0 +1,13 @@
+# Payments API sample requests (tokens below are fake, non-functional demo values)
+
+curl -X GET https://api.example.com/v1/charges \
+  -H "Authorization: Bearer DEMOBEARERtokenABCDEFGHIJKLMNOPQRSTUVWXYZ01" \
+  -H "Accept: application/json"
+
+curl -X POST https://api.example.com/v1/charges \
+  -H "Authorization: Bearer DEMOBEARERtokenABCDEFGHIJKLMNOPQRSTUVWXYZ01" \
+  -H "Content-Type: application/json" \
+  -d '{"amount": 2000, "currency": "usd", "source": "tok_visa"}'
+
+curl https://api.example.com/v1/balance \
+  -H "X-Api-Key: DEMOAPIKEYabcdef0123456789"

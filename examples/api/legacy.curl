@@ -1,0 +1,9 @@
+# Legacy service: demonstrates http + secret-in-query + basic auth
+
+curl "http://legacy.example.com/api/report?api_key=legacy_secret_key_998877&format=csv"
+
+curl -u admin:hunter2 https://legacy.example.com/api/admin/users
+
+curl -X POST https://legacy.example.com/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "ops", "password": "s3cr3t-p@ss"}'
