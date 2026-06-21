@@ -172,6 +172,17 @@ execution_plans.md       per-recipe topological order + dependency edges
 
 Validation rules catch: cyclic dependencies (with the cycle path), dangling step/input references, self-dependencies, duplicate/missing step ids, unproduced declared outputs, unreachable steps, plus the usual name/version/description checks.
 
+## Compose packs: prompts into evals
+
+Packs compose through artifacts, not imports. A prompts-pack `examples.jsonl` can feed the evals pack directly:
+
+```bash
+tessera prompts compile --input examples/prompts/ --output ./out/prompt_pack
+tessera evals compile --input ./out/prompt_pack --from-prompts --task customer_support --output ./out/eval_pack
+```
+
+The evals pack reads the documented `examples.jsonl` interchange shape (it does not import `tessera-prompts`), maps each prompt example to an `EvalRecord` (input from `rendered_prompt`, expected from `expected`), and stamps `metadata.origin = "prompts"` for provenance. `--input` accepts either the prompt-pack directory or the `examples.jsonl` file directly.
+
 ## Run the tests
 
 ```bash
