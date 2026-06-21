@@ -18,8 +18,9 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 | `tessera-evals` | Compile messy CSV data into a canonical eval pack. |
 | `tessera-prompts` | Compile a directory of prompt files (frontmatter + body) into a validated catalog. |
 | `tessera-skills` | Validate and catalog Anthropic-style `SKILL.md` skill collections (with file inventory, dep extraction, and description overlap detection). |
+| `tessera-recipes` | Compile multi-step workflow recipes into validated, dependency-ordered execution plans (DAG validation: cycles, dangling refs, topological order). |
 
-Future packs (recipes, RAG, API tracing, repo mapping) follow the same JobPack contract; they do not require changes to core.
+Future packs (RAG, API tracing, repo mapping) follow the same JobPack contract; they do not require changes to core.
 
 ## Local setup
 
@@ -31,7 +32,8 @@ python -m pip install -U pip
 pip install -e packages/tessera-core \
             -e packages/tessera-evals \
             -e packages/tessera-prompts \
-            -e packages/tessera-skills
+            -e packages/tessera-skills \
+            -e packages/tessera-recipes
 ```
 
 ## List installed plugins
@@ -149,13 +151,35 @@ dependencies_report.md   bash / MCP / skill-to-skill surface + overlap matrix
 
 Validation rules catch: missing/non-canonical name, missing/short description, descriptions lacking trigger phrasing, invalid SemVer, empty body, name collisions, and description overlap (token Jaccard > 0.5 warns, > 0.7 errors).
 
+## Compile a recipe pack
+
+```bash
+tessera recipes compile --input examples/recipes/ --output ./out/recipe_pack
+```
+
+Each recipe is a frontmatter + body file (`<name>.recipe.md` or `<name>/RECIPE.md`) whose frontmatter declares `inputs`, `outputs`, and a list of `steps`. Steps depend on each other via explicit `needs` or via `${steps.X.output}` references in their inputs (both forms are unioned into the dependency graph). The compiler validates the graph (cycles, dangling references, reachability) and computes a topological execution order.
+
+Artifacts written:
+
+```text
+index.jsonl              canonical Recipe rows
+plans.jsonl              machine execution plan per recipe (topo order, edges, cycle)
+index.md                 human-readable catalog
+validation_report.md     graph + frontmatter findings
+coverage_report.md       step counts, acyclic ratio, tag distribution
+execution_plans.md       per-recipe topological order + dependency edges
+```
+
+Validation rules catch: cyclic dependencies (with the cycle path), dangling step/input references, self-dependencies, duplicate/missing step ids, unproduced declared outputs, unreachable steps, plus the usual name/version/description checks.
+
 ## Run the tests
 
 ```bash
 .venv/bin/python -m pytest packages/tessera-core/tests \
                            packages/tessera-evals/tests \
                            packages/tessera-prompts/tests \
-                           packages/tessera-skills/tests
+                           packages/tessera-skills/tests \
+                           packages/tessera-recipes/tests
 ```
 
 ## Build wheels
@@ -166,4 +190,5 @@ python -m build packages/tessera-core
 python -m build packages/tessera-evals
 python -m build packages/tessera-prompts
 python -m build packages/tessera-skills
+python -m build packages/tessera-recipes
 ```
