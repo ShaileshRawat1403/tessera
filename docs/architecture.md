@@ -106,6 +106,13 @@ tessera-config
   inventory, catalog, validation, coverage, drift report
   ConfigPack: implements JobPack
 
+tessera-openapi
+  Endpoint / SpecInfo schemas (pydantic BaseModel)
+  spec loader (OpenAPI 3.x + Swagger 2.0; json/yaml; operation iterator)
+  lint validator (path params, operationIds, responses, security, ...)
+  endpoint catalog, validation, coverage, tag-grouped surface
+  OpenApiPack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -499,6 +506,31 @@ project directory
 The three-way set difference (declared in an example, set in a real env, referenced in code) is the heart of the pack: each pairwise gap is a distinct, actionable drift finding. The leak check is deliberately conservative and name-based in v0.1 (same approach as the api pack), and like api it carries a test asserting no raw secret value reaches any artifact.
 
 Contract note: tenth JobPack implementer; core untouched. The masking utility is kept local to the pack rather than imported from api — packs never depend on each other; a shared masking primitive in core is a possible future refactor, not a v0.1 coupling.
+
+## 5l. OpenAPI pack v0.1 (spec lint -> endpoint catalog)
+
+The openapi pack parses an OpenAPI 3.x or Swagger 2.0 document into a canonical endpoint catalog and lints it for common spec-hygiene problems. It pairs with the api pack: api characterizes traffic that exists, openapi characterizes the contract that describes it.
+
+```text
+spec file (.json / .yaml)
+  ↓ load_openapi_records()
+    find_spec_file(): openapi.* / swagger.* or any yaml/json mentioning openapi/swagger
+    load_spec(): json or yaml
+    iter_operations(): paths -> {method: operation}, merging path-level parameters
+    build Endpoint: method/path/operationId/tags/path-params/declared-params/
+                    responses/deprecated/secured
+  ↓ validate_openapi_records()
+    invalid_spec, no_endpoints, duplicate_operation_id, missing_operation_id,
+    path_param_not_declared, declared_param_not_in_path, missing_2xx_response,
+    missing_summary, no_tags, no_security, deprecated_endpoint
+  ↓ write_artifacts()
+    endpoints.jsonl, index.md, validation_report.md, coverage_report.md,
+    surface.md (the API surface grouped by tag)
+```
+
+The load-bearing lint is `path_param_not_declared`: a `{param}` in a path template with no matching `parameters` entry is a real bug that breaks generated clients and docs. The pack handles both spec dialects — OpenAPI 3.x `requestBody`/`servers` and Swagger 2.0 `in: body` params/`host` — behind one `Endpoint` shape, so downstream consumers do not care which dialect produced the catalog.
+
+Contract note: eleventh JobPack implementer; core untouched. Spec parsing lives in `normalize`, lint rules in `validate`. Eleven packs now span tabular rows, document files, folders, graphs, corpora, repo trees, curl traces, env config, git history, and API specs — all on the same v0.1 contract.
 
 ## 6. Schema and type policy
 

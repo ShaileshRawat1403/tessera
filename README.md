@@ -24,6 +24,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 | `tessera-repo` | Map a repository into a validated structural artifact (file inventory, language/layout map, dependency surface, hygiene signals; no code execution). |
 | `tessera-changelog` | Turn git history (or a `commits.jsonl`) into a structured `CHANGELOG.md` + release notes via Conventional Commits parsing. |
 | `tessera-config` | Inventory config keys across env files and code, redact leaked secrets, and report config drift (used-but-undocumented, etc.). |
+| `tessera-openapi` | Lint an OpenAPI/Swagger spec into a validated endpoint catalog (undeclared path params, duplicate operationIds, missing responses, ...). |
 | `tessera-app` | The unifying app: detect which packs apply to a project, run them, and build one self-contained HTML dashboard. CLI-only plugin (orchestrates JobPacks, is not one). |
 
 Future packs follow the same JobPack contract; they do not require changes to core.
@@ -47,6 +48,7 @@ pip install -e packages/tessera-core \
             -e packages/tessera-repo \
             -e packages/tessera-changelog \
             -e packages/tessera-config \
+            -e packages/tessera-openapi \
             -e packages/tessera-app
 ```
 
@@ -254,7 +256,8 @@ This pack does not execute requests; live calling/batch/streaming are deferred t
                            packages/tessera-repo/tests \
                            packages/tessera-app/tests \
                            packages/tessera-changelog/tests \
-                           packages/tessera-config/tests
+                           packages/tessera-config/tests \
+                           packages/tessera-openapi/tests
 ```
 
 ## Build wheels
@@ -272,4 +275,5 @@ python -m build packages/tessera-repo
 python -m build packages/tessera-app
 python -m build packages/tessera-changelog
 python -m build packages/tessera-config
+python -m build packages/tessera-openapi
 ```
