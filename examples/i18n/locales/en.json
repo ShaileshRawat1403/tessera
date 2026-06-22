@@ -1,0 +1,8 @@
+{
+  "greeting": "Hello",
+  "farewell": "Goodbye",
+  "menu": {
+    "file": "File",
+    "edit": "Edit"
+  }
+}

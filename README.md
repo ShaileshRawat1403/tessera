@@ -32,6 +32,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 | `tessera-tests` | Audit a Python test suite via `ast` for hygiene (no-assertion tests, skipped/xfail tests that protect nothing). |
 | `tessera-links` | Check Markdown links for broken file references, dead heading anchors, and orphaned docs (external URLs inventoried, not fetched). |
 | `tessera-dockerfile` | Lint Dockerfiles for image hygiene/security (latest tags, root user, secrets in ENV, ADD vs COPY, missing healthcheck). |
+| `tessera-i18n` | Check translation-key coverage across locale files (missing/extra/empty keys vs a reference locale). |
 | `tessera-app` | The unifying app: detect which packs apply to a project, run them, and build one self-contained HTML dashboard. CLI-only plugin (orchestrates JobPacks, is not one). |
 
 Future packs follow the same JobPack contract; they do not require changes to core.
@@ -63,6 +64,7 @@ pip install -e packages/tessera-core \
             -e packages/tessera-tests \
             -e packages/tessera-links \
             -e packages/tessera-dockerfile \
+            -e packages/tessera-i18n \
             -e packages/tessera-app
 ```
 
@@ -278,7 +280,8 @@ This pack does not execute requests; live calling/batch/streaming are deferred t
                            packages/tessera-deps/tests \
                            packages/tessera-tests/tests \
                            packages/tessera-links/tests \
-                           packages/tessera-dockerfile/tests
+                           packages/tessera-dockerfile/tests \
+                           packages/tessera-i18n/tests
 ```
 
 ## Build wheels
@@ -304,4 +307,5 @@ python -m build packages/tessera-deps
 python -m build packages/tessera-tests
 python -m build packages/tessera-links
 python -m build packages/tessera-dockerfile
+python -m build packages/tessera-i18n
 ```

@@ -1,0 +1,9 @@
+{
+  "greeting": "Hola",
+  "farewell": "Adiós",
+  "menu": {
+    "file": "Archivo",
+    "edit": "Editar"
+  },
+  "legacy_key": "obsoleto"
+}
