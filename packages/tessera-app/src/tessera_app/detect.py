@@ -133,6 +133,10 @@ def detect_packs(project: Path) -> list[Detection]:
     if any_named(lambda p: p.name.lower().startswith(("license", "licence")) or p.name.lower() == "copying") or (names & manifest_names):
         detections.append(Detection("license", "found a LICENSE file or a manifest", project))
 
+    # gha (GitHub Actions workflows)
+    if (project / ".github" / "workflows").is_dir():
+        detections.append(Detection("gha", "found .github/workflows", project))
+
     # changelog (a git repo, or a commits.jsonl)
     if (project / ".git").exists():
         detections.append(Detection("changelog", "found a git repository", project))

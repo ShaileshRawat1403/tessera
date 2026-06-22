@@ -1,0 +1,13 @@
+name: CI
+on:
+  push:
+  pull_request_target:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Greet PR
+        run: echo "Title is ${{ github.event.issue.title }}"
