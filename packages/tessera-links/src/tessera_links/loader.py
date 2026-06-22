@@ -81,5 +81,9 @@ def load_link_records(input_path: Path, options: dict[str, Any]) -> list[Link]:
 
     options["_orphans"] = orphans
     options["_md_count"] = len(md_files)
+    # How many docs are reachable via inline markdown links. If this is ~0 the
+    # project navigates via something else (Sphinx toctree, mkdocs nav, ...),
+    # so "orphan by markdown link" is meaningless and must not be reported.
+    options["_referenced_md_count"] = len(referenced_targets)
     options["_root"] = str(root)
     return links

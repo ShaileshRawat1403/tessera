@@ -86,3 +86,21 @@ def test_round_trip(tmp_path: Path):
     for line in (out / "glossary.jsonl").read_text().splitlines():
         t = Term.model_validate_json(line)
         assert t.term
+
+
+# ---------- precision: single-occurrence minority forms are not drift ----------
+from tessera_glossary.loader import _abbreviation_clusters  # noqa: E402
+
+
+def test_single_occurrence_minority_not_flagged():
+    # 'button' appears, 'btn' appears once -> not a real inconsistency
+    counts = {"button": 9, "btn": 1, "config": 40, "cfg": 5}
+    clusters = {c["concept"] for c in _abbreviation_clusters(counts)}
+    assert "button" not in clusters   # btn(1) filtered out
+    assert "config" in clusters        # cfg(5) is a real minority form
+
+
+def test_threshold_is_configurable():
+    counts = {"config": 40, "cfg": 2}
+    assert {c["concept"] for c in _abbreviation_clusters(counts, min_minority=2)} == {"config"}
+    assert _abbreviation_clusters(counts, min_minority=3) == []  # cfg(2) below 3
