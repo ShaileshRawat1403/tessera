@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-i18n"
-version = "0.2.0"
+version = "0.3.0"
 description = "i18n job pack for Tessera: check translation-key coverage across locale files."
 readme = "README.md"
 requires-python = ">=3.10"

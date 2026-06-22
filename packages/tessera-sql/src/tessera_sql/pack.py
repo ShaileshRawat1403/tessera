@@ -11,7 +11,7 @@ from tessera_sql.compiler import load_records, validate_records, write_artifacts
 
 class SqlPack(JobPack):
     name = "sql"
-    version = "0.2.0"
+    version = "0.3.0"
 
     def normalize(self, input_path: Path, options: dict[str, Any]) -> list[Any]:
         return load_records(input_path, options)

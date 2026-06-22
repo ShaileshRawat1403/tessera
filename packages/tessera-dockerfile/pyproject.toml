@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-dockerfile"
-version = "0.2.0"
+version = "0.3.0"
 description = "Dockerfile job pack for Tessera: lint Dockerfiles for image hygiene and security."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-recipes"
-version = "0.2.0"
+version = "0.3.0"
 description = "Recipes job pack for Tessera: compile multi-step workflow recipes into validated, ordered assets."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-docs"
-version = "0.2.0"
+version = "0.3.0"
 description = "Docs job pack for Tessera: measure Python docstring coverage for public symbols."
 readme = "README.md"
 requires-python = ">=3.10"

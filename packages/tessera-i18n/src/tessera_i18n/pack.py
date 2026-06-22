@@ -11,7 +11,7 @@ from tessera_i18n.compiler import load_records, validate_records, write_artifact
 
 class I18nPack(JobPack):
     name = "i18n"
-    version = "0.2.0"
+    version = "0.3.0"
 
     def normalize(self, input_path: Path, options: dict[str, Any]) -> list[Any]:
         return load_records(input_path, options)

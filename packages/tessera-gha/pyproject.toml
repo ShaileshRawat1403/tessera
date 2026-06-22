@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-gha"
-version = "0.2.0"
+version = "0.3.0"
 description = "GitHub Actions job pack for Tessera: lint workflows for security and hygiene."
 readme = "README.md"
 requires-python = ">=3.10"
