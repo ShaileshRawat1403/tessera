@@ -448,6 +448,8 @@ Redaction-first design (the load-bearing safety property):
 
 Live request execution (the API caller, batch runner, streaming response capture) is intentionally **out of scope for v0.1**, the same way LLM rubric enrichment is deferred in evals. v0.1 is the offline, side-effect-free pass. When execution lands, it will be a separate opt-in path with its own network and secret-handling considerations; the offline canonicalization here is the foundation it will build on.
 
+**v0.2 deepening — shape-based secret detection.** Name-based detection misses secrets in fields not named like secrets (a token in `X-Trace-Token`, a JWT in `?trace=`, an AWS key in a body field). v0.2 adds `detect_secret_shape`: precise provider patterns (AWS `AKIA…`, GitHub `ghp_…`, Slack/Stripe/Google/OpenAI, JWT, PEM private-key blocks) plus a conservative Shannon-entropy fallback for long mixed-charset tokens, with UUIDs and other common identifiers excluded to keep false positives down. Every header, query value, and body is now screened by shape as well as by name, and a secret found in a non-conventional field raises `secret_in_nonstandard_location`. The test tokens are constructed at runtime by concatenation so no provider-shaped literal is committed (the same secret-scanning lesson the rename branch learned). This is the redaction-first guarantee made stronger: the pack now catches credentials it previously would have written through.
+
 Contract note: the api pack rides the same `JobPack` lifecycle as the other five. Parsing, redaction, and validation all live inside `normalize`/`validate`; nothing about secrets or curl reached `tessera-core`.
 
 ## 5g. RAG pack v0.1 flow (corpus + queries -> retrieval eval dataset)

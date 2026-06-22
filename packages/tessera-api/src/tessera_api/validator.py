@@ -4,6 +4,7 @@ from collections import Counter
 
 from tessera_core.models import ValidationFinding
 
+from tessera_api.redact import SECRET_HEADER_NAMES, SECRET_QUERY_NAMES
 from tessera_api.schema import ApiRequest
 
 
@@ -74,5 +75,22 @@ def _validate_one(r: ApiRequest) -> list[ValidationFinding]:
     if not r.auth.present:
         findings.append(f("info", "no_auth_detected",
                           f"{r.method} {r.host}{r.path} has no detectable auth", "auth"))
+
+    # A secret found by shape in a field whose NAME is not a known secret name
+    # is high-signal: a custom auth header or a token hiding in an odd field.
+    for red in r.redactions:
+        loc = red.location
+        if loc.startswith("header:"):
+            name = loc.split(":", 1)[1]
+            if name not in SECRET_HEADER_NAMES:
+                findings.append(f("warning", "secret_in_nonstandard_location",
+                                  f"a {red.kind} was detected in header '{name}', which is not a conventional secret header",
+                                  "headers"))
+        elif loc.startswith("query:"):
+            name = loc.split(":", 1)[1]
+            if name not in SECRET_QUERY_NAMES:
+                findings.append(f("warning", "secret_in_nonstandard_location",
+                                  f"a {red.kind} was detected in query param '{name}', which is not a conventional secret name",
+                                  "query"))
 
     return findings

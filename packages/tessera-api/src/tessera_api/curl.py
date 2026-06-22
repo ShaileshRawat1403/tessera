@@ -6,8 +6,10 @@ import shlex
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from tessera_api.redact import (
+    _TOKEN_PATTERNS,
     auth_token_value,
     classify_header_secret,
+    detect_secret_shape,
     is_secret_header,
     is_secret_query,
     mask,
@@ -173,7 +175,13 @@ def _ingest_header(raw: str, headers: dict[str, str], redactions: list[Redaction
             auth.location = f"header:{name}"
             auth.present = True
     else:
-        headers[name] = value
+        # not a known secret-named header: still screen the value by shape
+        shape = detect_secret_shape(value)
+        if shape:
+            redactions.append(Redaction(location=f"header:{name.lower()}", kind=shape, preview=mask(value)))
+            headers[name] = "(redacted)"
+        else:
+            headers[name] = value
 
 
 def _split_and_redact_url(url: str):
@@ -188,8 +196,14 @@ def _split_and_redact_url(url: str):
             redacted_pairs.append((k, "(redacted)"))
             query_map[k] = "(redacted)"
         else:
-            redacted_pairs.append((k, v))
-            query_map[k] = v
+            shape = detect_secret_shape(v)
+            if shape:
+                redactions.append(Redaction(location=f"query:{k}", kind=shape, preview=mask(v)))
+                redacted_pairs.append((k, "(redacted)"))
+                query_map[k] = "(redacted)"
+            else:
+                redacted_pairs.append((k, v))
+                query_map[k] = v
     redacted_query = urlencode(redacted_pairs)
     return parts.scheme, parts.netloc, parts.path, redacted_query, query_map, redactions
 
@@ -227,6 +241,15 @@ def _redact_body(body: str) -> tuple[str, list[Redaction]]:
         redacted,
         flags=re.IGNORECASE,
     )
+
+    # shape-based pass: provider tokens embedded anywhere in the body text,
+    # regardless of the surrounding key name (catches secrets in odd fields)
+    for kind, pat in _TOKEN_PATTERNS:
+        def tok_sub(m: "re.Match[str]", _kind: str = kind) -> str:
+            redactions.append(Redaction(location="body", kind=_kind, preview=mask(m.group(0))))
+            return "(redacted)"
+        redacted = pat.sub(tok_sub, redacted)
+
     return redacted, redactions
 
 
