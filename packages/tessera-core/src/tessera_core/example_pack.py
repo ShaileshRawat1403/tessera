@@ -9,7 +9,7 @@ from tessera_core.models import Artifact, RunContext, ValidationFinding
 
 class ExamplePack(JobPack):
     name = "example"
-    version = "0.3.0"
+    version = "0.3.1"
 
     def normalize(self, input_path: Path, options: dict[str, Any]) -> list[Any]:
         return [{"input_path": str(input_path)}]

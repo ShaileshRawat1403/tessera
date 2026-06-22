@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-tests"
-version = "0.3.0"
+version = "0.3.1"
 description = "Tests job pack for Tessera: audit a Python test suite for hygiene (no-assert, skipped, xfail)."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -11,6 +11,8 @@
 
 ## Other
 
+- dogfood: precision fixes from running the hub on real repos `f3f0269`
+- release: bump all packages to 0.3.0 + regenerate CHANGELOG `914b7a5`
 - deepen: gha RCE-combo, config value-shape secrets, deps lockfile drift `eba7cda`
 - api: deepen with shape-based secret detection (value over volume) `9ceca89`
 - sql: deepen migration-safety rules (value over volume) `17bdece`

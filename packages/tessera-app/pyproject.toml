@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-app"
-version = "0.3.0"
+version = "0.3.1"
 description = "Tessera app: orchestrate the job packs over a project and build a self-contained HTML dashboard."
 readme = "README.md"
 requires-python = ">=3.10"

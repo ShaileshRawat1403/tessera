@@ -15,7 +15,7 @@ from tessera_skills.compiler import (
 
 class SkillsPack(JobPack):
     name = "skills"
-    version = "0.3.0"
+    version = "0.3.1"
 
     def normalize(self, input_path: Path, options: dict[str, Any]) -> list[Any]:
         return load_skill_records(input_path, options)

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-schema"
-version = "0.3.0"
+version = "0.3.1"
 description = "Schema job pack for Tessera: catalog and lint JSON Schema documents."
 readme = "README.md"
 requires-python = ">=3.10"

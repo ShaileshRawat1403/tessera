@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-repo"
-version = "0.3.0"
+version = "0.3.1"
 description = "Repo job pack for Tessera: map a repository into a validated structural artifact."
 readme = "README.md"
 requires-python = ">=3.10"

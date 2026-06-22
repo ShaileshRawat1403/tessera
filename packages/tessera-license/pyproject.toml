@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-license"
-version = "0.3.0"
+version = "0.3.1"
 description = "License job pack for Tessera: detect and classify project licenses offline."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -11,7 +11,7 @@ from tessera_todo.compiler import load_records, validate_records, write_artifact
 
 class TodoPack(JobPack):
     name = "todo"
-    version = "0.3.0"
+    version = "0.3.1"
 
     def normalize(self, input_path: Path, options: dict[str, Any]) -> list[Any]:
         return load_records(input_path, options)

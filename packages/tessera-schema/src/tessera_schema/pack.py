@@ -11,7 +11,7 @@ from tessera_schema.compiler import load_records, validate_records, write_artifa
 
 class SchemaPack(JobPack):
     name = "schema"
-    version = "0.3.0"
+    version = "0.3.1"
 
     def normalize(self, input_path: Path, options: dict[str, Any]) -> list[Any]:
         return load_records(input_path, options)

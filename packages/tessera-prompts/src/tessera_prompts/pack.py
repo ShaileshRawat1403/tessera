@@ -15,7 +15,7 @@ from tessera_prompts.compiler import (
 
 class PromptsPack(JobPack):
     name = "prompts"
-    version = "0.3.0"
+    version = "0.3.1"
 
     def normalize(self, input_path: Path, options: dict[str, Any]) -> list[Any]:
         return load_prompt_records(input_path, options)

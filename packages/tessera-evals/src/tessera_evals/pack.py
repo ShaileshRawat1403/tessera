@@ -15,7 +15,7 @@ from tessera_evals.compiler import (
 
 class EvalsPack(JobPack):
     name = "evals"
-    version = "0.3.0"
+    version = "0.3.1"
 
     def normalize(self, input_path: Path, options: dict[str, Any]) -> list[Any]:
         return load_eval_records(input_path, options)
