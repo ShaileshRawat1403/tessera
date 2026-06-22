@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tesserakit-openapi"
+version = "0.1.0"
+description = "OpenAPI job pack for Tessera: lint an OpenAPI/Swagger spec into an endpoint catalog and findings."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Tessera" }]
+dependencies = [
+  "tesserakit-core>=0.1.0",
+  "typer>=0.12",
+  "rich>=13.7",
+  "pydantic>=2.7",
+  "pyyaml>=6.0",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.entry-points."tessera.commands"]
+openapi = "tessera_openapi.cli:register"
+
+[project.entry-points."tessera.jobpacks"]
+openapi = "tessera_openapi.pack:create_pack"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tessera_openapi"]

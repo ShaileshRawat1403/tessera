@@ -77,6 +77,16 @@ def detect_packs(project: Path) -> list[Detection]:
     if any_named(lambda p: p.name.lower() == ".env" or p.name.lower().startswith(".env.") or p.name.lower().endswith(".env")):
         detections.append(Detection("config", "found .env / .env.example files", project))
 
+    # openapi (a yaml/json spec mentioning openapi/swagger)
+    spec = next(
+        (p for p in files
+         if p.suffix.lower() in (".yaml", ".yml", ".json")
+         and ("openapi" in _safe_head(p) or "swagger" in _safe_head(p))),
+        None,
+    )
+    if spec is not None:
+        detections.append(Detection("openapi", f"found an OpenAPI/Swagger spec: {spec.name}", spec))
+
     # changelog (a git repo, or a commits.jsonl)
     if (project / ".git").exists():
         detections.append(Detection("changelog", "found a git repository", project))

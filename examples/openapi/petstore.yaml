@@ -1,0 +1,50 @@
+openapi: 3.0.3
+info:
+  title: Petstore
+  version: 1.0.0
+servers:
+  - url: https://api.petstore.example/v1
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      summary: List all pets
+      tags: [pets]
+      responses:
+        '200':
+          description: a list of pets
+    post:
+      # intentionally missing operationId, summary, tags, and any 2xx response
+      tags: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '400':
+          description: bad request
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      summary: Get a pet by id
+      tags: [pets]
+      # intentionally does NOT declare the petId path parameter
+      responses:
+        '200':
+          description: a pet
+    delete:
+      operationId: listPets   # intentional duplicate operationId
+      summary: Delete a pet
+      tags: [pets]
+      deprecated: true
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: deleted
