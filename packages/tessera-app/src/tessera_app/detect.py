@@ -107,6 +107,10 @@ def detect_packs(project: Path) -> list[Detection]:
     if any_suffix(".sql"):
         detections.append(Detection("sql", "found .sql files", project))
 
+    # dockerfile (any Dockerfile / *.dockerfile)
+    if any_named(lambda p: p.name.lower() == "dockerfile" or p.name.lower().startswith("dockerfile.") or p.name.lower().endswith(".dockerfile")):
+        detections.append(Detection("dockerfile", "found a Dockerfile", project))
+
     # todo (any common source/doc files -> marker backlog)
     if any_suffix(".py", ".js", ".ts", ".go", ".rs", ".java", ".rb", ".md", ".sql", ".sh"):
         detections.append(Detection("todo", "found source/doc files to scan for markers", project))

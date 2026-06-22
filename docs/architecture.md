@@ -156,6 +156,13 @@ tessera-links
   link inventory, coverage, broken-links report
   LinksPack: implements JobPack
 
+tessera-dockerfile
+  Instruction schema (pydantic BaseModel)
+  Dockerfile parser (line-continuation join, multi-stage FROM ... AS tracking)
+  hygiene/security validator (latest tag, root, secret-in-ENV, ADD vs COPY, healthcheck)
+  instruction inventory, validation, coverage
+  DockerfilePack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -711,6 +718,26 @@ project / docs directory
 The deliberate non-goal is external link checking: fetching URLs would make the pack slow, flaky, and network-dependent, violating the hub's no-network discipline. Internal integrity — the links most likely to silently rot during refactors — is fully checkable offline, and that is where the value is. Anchor resolution reuses the same slug algorithm GitHub applies to headings, so `foo.md#my-section` is verified against the actual headings of `foo.md`.
 
 Contract note: seventeenth JobPack implementer; core untouched. Seventeen JobPacks (plus the in-core example) and the app, all still on the v0.1 contract.
+
+## 5s. Dockerfile pack v0.1 (image hygiene + security lint)
+
+The dockerfile pack parses Dockerfiles and flags the hygiene and security mistakes that ship insecure or non-reproducible images. It is multi-stage aware and never builds an image.
+
+```text
+Dockerfile(s)
+  ↓ load_dockerfile_records()
+    discover Dockerfile / Dockerfile.* / *.dockerfile; join line continuations;
+    parse each instruction; track FROM ... AS <stage> to know stage names
+  ↓ validate_dockerfile_records()  (per file)
+    unpinned_base_image, latest_tag, runs_as_root (no USER), secret_in_image
+    (ENV/ARG secret-named value), add_instead_of_copy, missing_healthcheck
+  ↓ write_artifacts()
+    instructions.jsonl, index.md, validation_report.md, coverage_report.md
+```
+
+Multi-stage awareness is the detail that keeps the lint honest: `FROM base AS final` references an earlier `FROM python:3.12-slim AS base`, so it must not be flagged as an unpinned base image. The pack collects stage names on a first pass, then suppresses `unpinned_base_image`/`latest_tag` for `FROM <stage>` lines. The `secret_in_image` rule is the highest-value security finding: a secret baked into an `ENV`/`ARG` persists in the image's layer history even if later removed.
+
+Contract note: eighteenth JobPack implementer; core untouched.
 
 ## 6. Schema and type policy
 

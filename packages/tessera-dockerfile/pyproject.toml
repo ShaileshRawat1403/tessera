@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tesserakit-dockerfile"
+version = "0.2.0"
+description = "Dockerfile job pack for Tessera: lint Dockerfiles for image hygiene and security."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Tessera" }]
+dependencies = [
+  "tesserakit-core>=0.1.0",
+  "typer>=0.12",
+  "rich>=13.7",
+  "pydantic>=2.7",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.entry-points."tessera.commands"]
+dockerfile = "tessera_dockerfile.cli:register"
+
+[project.entry-points."tessera.jobpacks"]
+dockerfile = "tessera_dockerfile.pack:create_pack"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tessera_dockerfile"]
