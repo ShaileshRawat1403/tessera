@@ -120,6 +120,13 @@ tessera-docs
   symbols index, coverage report, undocumented list
   DocsPack: implements JobPack
 
+tessera-sql
+  SqlStatement / SqlTable schemas (pydantic BaseModel)
+  lightweight parser (strip comments, quote-aware statement split, classify, extract)
+  safety validator (delete/update without where, drop without if-exists, no PK, select *)
+  statement + table catalogs, validation, coverage
+  SqlPack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -562,6 +569,29 @@ project directory
 `undocumented.md` is the actionable artifact: a file:line list a developer can work straight down. Privates and dunders are excluded from the public-coverage denominator, matching the convention of tools like interrogate, so the number reflects the API surface that actually needs docs.
 
 Contract note: twelfth JobPack implementer; core untouched. `ast` parsing in `normalize`, coverage rules in `validate`. Twelve JobPacks (plus the in-core example) and the app now ride the v0.1 contract without a single change to `tessera-core` since it was written.
+
+## 5n. SQL pack v0.1 (migration safety lint)
+
+The sql pack parses `.sql` files and flags the migration mistakes that cause incidents. It does not connect to a database or execute anything; parsing is deliberately lightweight (comment stripping, quote-aware statement splitting, keyword/regex classification).
+
+```text
+.sql files
+  ↓ load_sql_records()
+    split_statements(): strip -- and /* */ comments, split on top-level ; (quote-aware)
+    classify(): kind (create_table/index, alter, drop, insert, update, delete, select) + target
+    statement_flags(): has_where, if_exists, select_star
+    parse_create_table(): column names + PRIMARY KEY presence
+  ↓ validate_sql_records()
+    delete_without_where (error), update_without_where, drop_without_if_exists,
+    table_without_primary_key, select_star
+  ↓ write_artifacts()
+    statements.jsonl, tables.jsonl, index.md, validation_report.md,
+    coverage_report.md, tables.md
+```
+
+The load-bearing finding is `delete_without_where` at error severity: an unscoped `DELETE`/`UPDATE` is one of the most common destructive-migration mistakes, and the quote-aware splitter exists specifically so a semicolon inside a string literal does not fool the statement boundary detection. v0.1 is honest about being heuristic rather than a full dialect parser — it targets migration and schema files, which are the high-value review surface.
+
+Contract note: thirteenth JobPack implementer; core untouched. Parsing and table extraction in `normalize`, safety rules in `validate`.
 
 ## 6. Schema and type policy
 
