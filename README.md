@@ -27,6 +27,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 | `tessera-openapi` | Lint an OpenAPI/Swagger spec into a validated endpoint catalog (undeclared path params, duplicate operationIds, missing responses, ...). |
 | `tessera-docs` | Measure Python docstring coverage for public symbols (via `ast`; lists undocumented modules/classes/functions/methods). |
 | `tessera-sql` | Lint SQL files/migrations into a statement + table catalog (DELETE/UPDATE without WHERE, DROP without IF EXISTS, tables without a primary key, SELECT *). |
+| `tessera-todo` | Scan source for TODO/FIXME/HACK/XXX/BUG markers into a triaged, owner-grouped backlog. |
 | `tessera-app` | The unifying app: detect which packs apply to a project, run them, and build one self-contained HTML dashboard. CLI-only plugin (orchestrates JobPacks, is not one). |
 
 Future packs follow the same JobPack contract; they do not require changes to core.
@@ -53,6 +54,7 @@ pip install -e packages/tessera-core \
             -e packages/tessera-openapi \
             -e packages/tessera-docs \
             -e packages/tessera-sql \
+            -e packages/tessera-todo \
             -e packages/tessera-app
 ```
 
@@ -263,7 +265,8 @@ This pack does not execute requests; live calling/batch/streaming are deferred t
                            packages/tessera-config/tests \
                            packages/tessera-openapi/tests \
                            packages/tessera-docs/tests \
-                           packages/tessera-sql/tests
+                           packages/tessera-sql/tests \
+                           packages/tessera-todo/tests
 ```
 
 ## Build wheels
@@ -284,4 +287,5 @@ python -m build packages/tessera-config
 python -m build packages/tessera-openapi
 python -m build packages/tessera-docs
 python -m build packages/tessera-sql
+python -m build packages/tessera-todo
 ```
