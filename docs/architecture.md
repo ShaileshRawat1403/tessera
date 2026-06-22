@@ -127,6 +127,13 @@ tessera-sql
   statement + table catalogs, validation, coverage
   SqlPack: implements JobPack
 
+tessera-todo
+  TodoItem schema (pydantic BaseModel)
+  marker scanner (TODO/FIXME/HACK/XXX/BUG/NOTE/OPTIMIZE/REFACTOR/DEPRECATED)
+  triage validator (high-priority markers, ownerless TODOs, empty markers)
+  prioritized backlog, coverage, owner-grouped report
+  TodoPack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -592,6 +599,27 @@ The sql pack parses `.sql` files and flags the migration mistakes that cause inc
 The load-bearing finding is `delete_without_where` at error severity: an unscoped `DELETE`/`UPDATE` is one of the most common destructive-migration mistakes, and the quote-aware splitter exists specifically so a semicolon inside a string literal does not fool the statement boundary detection. v0.1 is honest about being heuristic rather than a full dialect parser — it targets migration and schema files, which are the high-value review surface.
 
 Contract note: thirteenth JobPack implementer; core untouched. Parsing and table extraction in `normalize`, safety rules in `validate`.
+
+## 5o. Todo pack v0.1 (marker backlog)
+
+The todo pack scans source for code markers and turns them into a triaged, owner-grouped backlog. It is the lightest pack in the hub and the most universally applicable: almost any codebase has `TODO`/`FIXME` markers, and they are rarely tracked anywhere.
+
+```text
+project directory
+  ↓ load_todo_records()
+    scan_todos(): line-by-line regex over source/doc files for
+    TODO/FIXME/HACK/XXX/BUG/NOTE/OPTIMIZE/REFACTOR/DEPRECATED, capturing the
+    optional (owner) and trailing description; assign priority (high/normal/low)
+  ↓ validate_todo_records()
+    high_priority_marker (FIXME/HACK/XXX/BUG), todo_without_owner, marker_without_text
+  ↓ write_artifacts()
+    todos.jsonl, index.md (high priority first), validation_report.md,
+    coverage_report.md (by priority/marker/file), by_owner.md
+```
+
+Priority is assigned by marker class so the backlog sorts itself: `FIXME`/`HACK`/`XXX`/`BUG` are high, `TODO`/`REFACTOR` normal, `NOTE`/`OPTIMIZE`/`DEPRECATED` low. The `by_owner.md` artifact turns `TODO(owner):` annotations into per-person worklists. Detection is intentionally permissive (it matches the marker anywhere on a line, not only inside a parsed comment) which trades a few false positives for being fully language-agnostic.
+
+Contract note: fourteenth JobPack implementer; core untouched. Fourteen JobPacks plus the in-core example and the app, all on the unchanged v0.1 contract.
 
 ## 6. Schema and type policy
 
