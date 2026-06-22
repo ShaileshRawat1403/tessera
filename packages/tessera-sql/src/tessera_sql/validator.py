@@ -35,6 +35,23 @@ def validate_sql_records(statements: list[SqlStatement], options: dict[str, Any]
             findings.append(f("info", "select_star",
                               f"{loc}: SELECT * couples the query to column order/shape"))
 
+        # --- migration-safety rules (the costly, easy-to-miss ones) ---
+        if s.kind == "truncate":
+            findings.append(f("warning", "truncate_table",
+                              f"{loc}: TRUNCATE removes all rows and is often non-transactional / non-reversible"))
+        if s.kind == "alter" and s.flags.get("add_not_null_without_default"):
+            findings.append(f("error", "add_not_null_without_default",
+                              f"{loc}: ADD COLUMN NOT NULL without DEFAULT rewrites the table and fails on existing rows"))
+        if s.kind == "alter" and s.flags.get("drops_column"):
+            findings.append(f("warning", "drop_column",
+                              f"{loc}: dropping a column is destructive and irreversible; ensure no code still reads it"))
+        if s.kind == "alter" and s.flags.get("renames"):
+            findings.append(f("warning", "rename_breaks_compatibility",
+                              f"{loc}: RENAME breaks any code/queries referencing the old name; prefer add-new + backfill + drop-old"))
+        if s.kind == "create_table" and not s.flags.get("if_not_exists"):
+            findings.append(f("info", "create_table_without_if_not_exists",
+                              f"{loc}: CREATE TABLE without IF NOT EXISTS is not idempotent if the migration re-runs"))
+
     tables: list[SqlTable] = options.get("_tables", [])
     for t in tables:
         if not t.has_primary_key:

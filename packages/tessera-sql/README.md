@@ -24,11 +24,24 @@ tables.md                table catalog with columns and PK status
 
 ## Lint rules
 
+Query safety:
+
 - `delete_without_where` (error) — `DELETE` with no `WHERE` removes every row
 - `update_without_where` (warning) — `UPDATE` with no `WHERE` writes every row
-- `drop_without_if_exists` (warning) — `DROP` without `IF EXISTS` fails if the object is absent
-- `table_without_primary_key` (warning) — a `CREATE TABLE` declares no `PRIMARY KEY`
 - `select_star` (info) — `SELECT *` couples the query to column shape
+
+Migration safety (the costly, easy-to-miss class):
+
+- `add_not_null_without_default` (error) — `ALTER TABLE ... ADD COLUMN ... NOT NULL` with no `DEFAULT` rewrites the table and fails on existing rows
+- `truncate_table` (warning) — `TRUNCATE` wipes all rows and is often non-transactional / irreversible
+- `drop_column` (warning) — dropping a column is destructive and irreversible
+- `rename_breaks_compatibility` (warning) — `RENAME` breaks code referencing the old name; prefer add-new + backfill + drop-old
+- `drop_without_if_exists` (warning) — `DROP` without `IF EXISTS` fails if the object is absent
+- `create_table_without_if_not_exists` (info) — non-idempotent if the migration re-runs
+
+Schema:
+
+- `table_without_primary_key` (warning) — a `CREATE TABLE` declares no `PRIMARY KEY`
 - `no_statements` — nothing parsed
 
 ## Limitations (v0.1)

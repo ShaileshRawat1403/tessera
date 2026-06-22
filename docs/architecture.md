@@ -663,6 +663,8 @@ The sql pack parses `.sql` files and flags the migration mistakes that cause inc
 
 The load-bearing finding is `delete_without_where` at error severity: an unscoped `DELETE`/`UPDATE` is one of the most common destructive-migration mistakes, and the quote-aware splitter exists specifically so a semicolon inside a string literal does not fool the statement boundary detection. v0.1 is honest about being heuristic rather than a full dialect parser — it targets migration and schema files, which are the high-value review surface.
 
+**v0.2 deepening — migration-safety rules.** The first hardening pass added the incident classes a reviewer most wants flagged: `add_not_null_without_default` (an `ALTER ... ADD COLUMN ... NOT NULL` with no default rewrites the whole table and errors on existing rows — a classic production outage), `truncate_table`, `drop_column`, `rename_breaks_compatibility`, and `create_table_without_if_not_exists` (migration idempotency). The parser now classifies `TRUNCATE` and decomposes `ALTER` into add/drop/rename sub-operations with not-null/default awareness. This is the "value, not volume" direction: the same pack, but now catching the mistakes that actually page someone at 2am.
+
 Contract note: thirteenth JobPack implementer; core untouched. Parsing and table extraction in `normalize`, safety rules in `validate`.
 
 ## 5o. Todo pack v0.1 (marker backlog)
