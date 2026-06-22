@@ -87,6 +87,10 @@ def detect_packs(project: Path) -> list[Detection]:
     if spec is not None:
         detections.append(Detection("openapi", f"found an OpenAPI/Swagger spec: {spec.name}", spec))
 
+    # docs (any Python source -> docstring coverage)
+    if any_suffix(".py"):
+        detections.append(Detection("docs", "found Python source for docstring coverage", project))
+
     # changelog (a git repo, or a commits.jsonl)
     if (project / ".git").exists():
         detections.append(Detection("changelog", "found a git repository", project))
