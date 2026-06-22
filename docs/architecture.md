@@ -97,6 +97,15 @@ tessera-changelog
   commits index, CHANGELOG.md, release notes, validation, coverage
   ChangelogPack: implements JobPack
 
+tessera-config
+  ConfigKey schema (pydantic BaseModel)
+  env-file parser + example/real classifier
+  code scanner (os.getenv / os.environ / process.env references)
+  secret detection + masking (redact at load time)
+  drift validator (committed secret, undocumented, missing, unused)
+  inventory, catalog, validation, coverage, drift report
+  ConfigPack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -465,6 +474,31 @@ git repo or commits.jsonl
 The portable `commits.jsonl` input is deliberate: it keeps the pack testable without a git fixture, and it mirrors the inter-pack interchange pattern — a future pack could emit commit records that this one consumes. The `\x1f`/`\x1e` separators in the git format string avoid the classic bug where a commit subject containing the delimiter corrupts parsing.
 
 Contract note: ninth JobPack implementer, unchanged lifecycle. The git subprocess and the conventional-commit parser live in `normalize`; the hygiene rules in `validate`. Core untouched.
+
+## 5k. Config pack v0.1 (config hygiene + leak check)
+
+The config pack inventories a project's configuration and reports the gaps between what is documented, what is set, and what is actually used. It is the second redaction-first pack (after api): secret values are masked at load time, before any record exists.
+
+```text
+project directory
+  ↓ load_config_records()
+    find_env_files(): classify .env* files into real vs example (example/sample/template)
+    parse_env(): KEY=VALUE (export prefix, quotes, inline comments)
+    find_code_references(): os.getenv / os.environ / getenv / process.env across source
+    aggregate per key: in_env / in_example / in_code; mask secret-named values
+  ↓ validate_config_records()
+    possible_committed_secret (a secret-named key with a value in a real .env),
+    missing_in_example (used in code, undocumented),
+    undocumented_env_key (set in .env, undocumented),
+    unused_documented_key (documented, never used or set)
+  ↓ write_artifacts()
+    config_inventory.jsonl, index.md, validation_report.md, coverage_report.md,
+    drift_report.md (used-but-undocumented / set-but-undocumented / documented-but-unused)
+```
+
+The three-way set difference (declared in an example, set in a real env, referenced in code) is the heart of the pack: each pairwise gap is a distinct, actionable drift finding. The leak check is deliberately conservative and name-based in v0.1 (same approach as the api pack), and like api it carries a test asserting no raw secret value reaches any artifact.
+
+Contract note: tenth JobPack implementer; core untouched. The masking utility is kept local to the pack rather than imported from api — packs never depend on each other; a shared masking primitive in core is a possible future refactor, not a v0.1 coupling.
 
 ## 6. Schema and type policy
 
