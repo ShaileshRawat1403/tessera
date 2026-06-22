@@ -191,6 +191,14 @@ tessera-gha
   step + workflow inventories, validation, coverage
   GhaPack: implements JobPack
 
+tessera-glossary
+  Term schema (pydantic BaseModel)
+  identifier/doc tokenizer (snake/kebab/camel split, stopwords)
+  abbreviation knowledge map + concept-cluster detector
+  terminology-drift validator
+  ranked glossary, coverage, inconsistencies report
+  GlossaryPack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -852,6 +860,29 @@ The gha pack parses GitHub Actions workflows and flags the security and hygiene 
 Two findings carry real security weight. `script_injection_risk` catches the classic pattern where `${{ github.event.issue.title }}` is interpolated straight into a shell `run:` block — an attacker controls that title, so this is remote code execution in CI; the fix is to pass it through an `env:` var. `unpinned_action` enforces SHA-pinning: a tag like `@v4` is mutable and can be repointed to malicious code, so third-party actions should be pinned to a commit SHA. The `on: True` PyYAML quirk is handled explicitly so triggers are read correctly.
 
 Contract note: twenty-second JobPack implementer; core untouched.
+
+## 5x. Glossary pack v0.1 (ubiquitous language + terminology drift)
+
+The glossary pack is the most exploratory in the hub: it treats the codebase as a corpus and extracts its *ubiquitous language* — the domain words that recur across identifiers and docs — then flags where one concept is written several ways.
+
+```text
+project directory
+  ↓ load_glossary_records()
+    tokenize identifiers (split snake/kebab/camelCase) and doc words; drop
+    stopwords + language keywords; count frequency; track code vs docs origin;
+    map known forms to canonical concepts and cluster co-occurring spellings
+  ↓ validate_glossary_records()
+    terminology_inconsistency (a concept written multiple ways)
+  ↓ write_artifacts()
+    glossary.jsonl, index.md (top terms), validation_report.md,
+    coverage_report.md (code-only vs doc-only vs shared), inconsistencies.md
+```
+
+Why this is worth a pack: inconsistent vocabulary is a silent tax. `grep config` misses `cfg`; a reader cannot tell whether `message` and `msg` are the same thing; and divergent terms are a leading indicator of divergent mental models. Tessera makes the vocabulary a first-class, reviewable artifact. The `coverage_report.md` split is itself a novel signal — terms that live only in code may be undocumented domain concepts, and terms only in docs may be aspirational or stale. Detection is deterministic via a curated abbreviation map (no fuzzy matching), so every finding is explainable.
+
+This pack embodies the project thesis at its strongest: a domain most people never think to validate, turned into a normalized, reviewable artifact through the same `JobPack` contract as everything else.
+
+Contract note: twenty-third JobPack implementer; core untouched. Twenty-three JobPacks, the in-core example, and the app — every one on the v0.1 contract that has not changed since the first commit.
 
 ## 6. Schema and type policy
 

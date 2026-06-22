@@ -113,6 +113,10 @@ def detect_packs(project: Path) -> list[Detection]:
     if any_suffix(".md", ".markdown"):
         detections.append(Detection("links", "found markdown files", project))
 
+    # glossary (any source or docs -> vocabulary extraction)
+    if any_suffix(".py", ".js", ".ts", ".go", ".rs", ".java", ".rb", ".md"):
+        detections.append(Detection("glossary", "found source/docs for vocabulary analysis", project))
+
     # tests (python test files present)
     if any_named(lambda p: p.suffix == ".py" and (p.name.startswith("test_") or p.name.endswith("_test.py"))):
         detections.append(Detection("tests", "found Python test files", project))

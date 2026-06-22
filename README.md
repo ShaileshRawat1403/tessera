@@ -36,6 +36,7 @@ See [`docs/architecture.md`](docs/architecture.md) for the full design.
 | `tessera-schema` | Catalog and lint JSON Schema documents (required-not-in-properties, missing type, open objects, missing dialect). |
 | `tessera-license` | Detect and classify a project's license offline (LICENSE files + manifests); flag copyleft, mismatches, and missing licenses. |
 | `tessera-gha` | Lint GitHub Actions workflows for security/hygiene (unpinned actions, `run:` script injection, risky triggers, missing permissions/timeouts). |
+| `tessera-glossary` | Extract a project's vocabulary (ubiquitous language) from code + docs and flag terminology drift (the same concept written as `config`/`cfg`/`conf`). |
 | `tessera-app` | The unifying app: detect which packs apply to a project, run them, and build one self-contained HTML dashboard. CLI-only plugin (orchestrates JobPacks, is not one). |
 
 Future packs follow the same JobPack contract; they do not require changes to core.
@@ -71,6 +72,7 @@ pip install -e packages/tessera-core \
             -e packages/tessera-schema \
             -e packages/tessera-license \
             -e packages/tessera-gha \
+            -e packages/tessera-glossary \
             -e packages/tessera-app
 ```
 
@@ -290,7 +292,8 @@ This pack does not execute requests; live calling/batch/streaming are deferred t
                            packages/tessera-i18n/tests \
                            packages/tessera-schema/tests \
                            packages/tessera-license/tests \
-                           packages/tessera-gha/tests
+                           packages/tessera-gha/tests \
+                           packages/tessera-glossary/tests
 ```
 
 ## Build wheels
@@ -320,4 +323,5 @@ python -m build packages/tessera-i18n
 python -m build packages/tessera-schema
 python -m build packages/tessera-license
 python -m build packages/tessera-gha
+python -m build packages/tessera-glossary
 ```
