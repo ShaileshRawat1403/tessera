@@ -142,6 +142,13 @@ tessera-deps
   inventory, coverage, duplicates report
   DepsPack: implements JobPack
 
+tessera-tests
+  TestCase schema (pydantic BaseModel)
+  ast test scanner (functions/methods, decorators, assertion counting)
+  hygiene validator (no-assertion, skipped, xfail)
+  test inventory, coverage, not-running report
+  TestsPack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -650,6 +657,31 @@ project directory
 `conflicting_constraint` is the highest-value finding: a dependency pinned to `==2.31.0` in one file and `>=2.0` in another is the kind of drift that produces "works on my machine" bugs. Pinning classification is ecosystem-aware (npm `^1.2.3` is ranged, `1.2.3` is exact; cargo bare versions are caret-ranged; go `require` lines are exact), so the coverage numbers mean the same thing across a polyglot repo. Like the repo and config packs, manifest parsing is best-effort and never resolves a lockfile or hits the network.
 
 Contract note: fifteenth JobPack implementer; core untouched.
+
+## 5q. Tests pack v0.1 (test-suite hygiene)
+
+The tests pack audits a Python test suite for the tests that look like coverage but protect nothing: tests with no assertions, and tests that are skipped or expected to fail. It parses with `ast` (no import, no execution), which matters because importing a test module can have side effects or require the project's full dependency tree.
+
+```text
+project directory
+  ↓ load_test_records()
+    discover_test_files(): test_*.py / *_test.py / files under tests/
+    extract_tests(): top-level test* functions and test* methods of Test* classes;
+                     render decorators to detect skip/xfail/parametrize; count
+                     assertions (assert statements, self.assert* calls,
+                     pytest.raises/warns blocks)
+  ↓ validate_test_records()
+    no_assertion_test (warning; excludes skipped/xfail), skipped_test, xfail_test
+  ↓ write_artifacts()
+    tests.jsonl, index.md, validation_report.md, coverage_report.md,
+    not_running.md (skipped + xfail tests)
+```
+
+The headline finding is `no_assertion_test`: a `test_*` function with zero detected assertions passes unconditionally and gives false confidence. Assertion detection is deliberately broad (bare `assert`, unittest `self.assert*`, and `pytest.raises`/`warns` context managers) to avoid false positives across testing styles. `not_running.md` answers a question every team eventually asks: which tests are currently turned off?
+
+One self-referential detail: the pack's own `TestCase` pydantic model sets `__test__ = False` so pytest does not try to collect the domain model as a test class — a small but real interaction between a pack that analyzes tests and the test runner it lives under.
+
+Contract note: sixteenth JobPack implementer; core untouched.
 
 ## 6. Schema and type policy
 

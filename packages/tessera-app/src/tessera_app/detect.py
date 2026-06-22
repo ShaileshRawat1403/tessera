@@ -95,6 +95,10 @@ def detect_packs(project: Path) -> list[Detection]:
     if any_suffix(".py"):
         detections.append(Detection("docs", "found Python source for docstring coverage", project))
 
+    # tests (python test files present)
+    if any_named(lambda p: p.suffix == ".py" and (p.name.startswith("test_") or p.name.endswith("_test.py"))):
+        detections.append(Detection("tests", "found Python test files", project))
+
     # sql (any .sql files)
     if any_suffix(".sql"):
         detections.append(Detection("sql", "found .sql files", project))
