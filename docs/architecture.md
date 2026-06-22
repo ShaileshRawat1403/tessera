@@ -170,6 +170,13 @@ tessera-i18n
   coverage table, per-locale missing-keys report
   I18nPack: implements JobPack
 
+tessera-schema
+  SchemaDoc schema (pydantic BaseModel)
+  JSON Schema loader (detection, structure extraction)
+  structural validator (required-not-in-properties, missing type, open objects)
+  schema catalog, validation, coverage
+  SchemaPack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -767,6 +774,27 @@ locale directory
 Two design choices make it practical: keys are flattened (`menu.file.open`) so a missing leaf in a nested structure is caught, not just a missing top-level block; and the reference is auto-selected (`en` if present, else the most complete locale) so the pack needs no configuration to produce a useful first report. `missing_keys.md` is the artifact a translator works straight down.
 
 Contract note: nineteenth JobPack implementer; core untouched.
+
+## 5u. Schema pack v0.1 (JSON Schema lint)
+
+The schema pack catalogs JSON Schema documents and flags structural problems. It reads the schemas themselves (not instance data) and needs no network.
+
+```text
+schema files
+  ↓ load_schema_records()
+    discover *.json (skipping package.json/tsconfig/...); treat as a schema when
+    it has $schema / properties / $defs / a schema-style root type;
+    extract id, dialect, title, type, properties, required, $defs
+  ↓ validate_schema_records()
+    required_not_in_properties (error), missing_type, object_without_properties,
+    additional_properties_unset, missing_schema_version, missing_title
+  ↓ write_artifacts()
+    schemas.jsonl, index.md, validation_report.md, coverage_report.md
+```
+
+The load-bearing finding is `required_not_in_properties`: a `required` entry with no matching `properties` declaration is a schema that can never validate as intended, and it is easy to introduce during refactors. `additional_properties_unset` surfaces the open-by-default behavior that silently lets unexpected fields through — a common source of data-quality drift.
+
+Contract note: twentieth JobPack implementer; core untouched.
 
 ## 6. Schema and type policy
 

@@ -85,6 +85,16 @@ def detect_packs(project: Path) -> list[Detection]:
     if any_named(lambda p: p.name.lower() == ".env" or p.name.lower().startswith(".env.") or p.name.lower().endswith(".env")):
         detections.append(Detection("config", "found .env / .env.example files", project))
 
+    # schema (a *.schema.json or a json mentioning $schema/properties)
+    schema_file = next(
+        (p for p in files
+         if p.name.lower().endswith(".schema.json")
+         or (p.suffix.lower() == ".json" and '"$schema"' in _safe_head(p) and "openapi" not in _safe_head(p))),
+        None,
+    )
+    if schema_file is not None:
+        detections.append(Detection("schema", "found JSON Schema document(s)", project))
+
     # openapi (a yaml/json spec mentioning openapi/swagger)
     spec = next(
         (p for p in files
