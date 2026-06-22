@@ -15,7 +15,7 @@ from tessera_recipes.compiler import (
 
 class RecipesPack(JobPack):
     name = "recipes"
-    version = "0.1.0"
+    version = "0.2.0"
 
     def normalize(self, input_path: Path, options: dict[str, Any]) -> list[Any]:
         return load_recipe_records(input_path, options)

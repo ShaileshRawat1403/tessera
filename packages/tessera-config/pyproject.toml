@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-config"
-version = "0.1.0"
+version = "0.2.0"
 description = "Config job pack for Tessera: inventory config keys, check for leaked secrets, and report config drift."
 readme = "README.md"
 requires-python = ">=3.10"

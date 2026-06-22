@@ -11,7 +11,7 @@ from tessera_openapi.compiler import load_records, validate_records, write_artif
 
 class OpenApiPack(JobPack):
     name = "openapi"
-    version = "0.1.0"
+    version = "0.2.0"
 
     def normalize(self, input_path: Path, options: dict[str, Any]) -> list[Any]:
         return load_records(input_path, options)

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-api"
-version = "0.1.0"
+version = "0.2.0"
 description = "API job pack for Tessera: parse curl/HTTP traces into a validated, secret-redacted API surface map."
 readme = "README.md"
 requires-python = ">=3.10"
