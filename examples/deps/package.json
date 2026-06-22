@@ -1,0 +1,11 @@
+{
+  "name": "demo",
+  "version": "1.0.0",
+  "dependencies": {
+    "react": "^18.2.0",
+    "left-pad": "*"
+  },
+  "devDependencies": {
+    "jest": "29.0.0"
+  }
+}

@@ -73,6 +73,10 @@ def detect_packs(project: Path) -> list[Detection]:
     if names & manifest_names or any_suffix(*source_suffixes):
         detections.append(Detection("repo", "found source files / a dependency manifest", project))
 
+    # deps (a dependency manifest => audit pinning/duplicates)
+    if names & manifest_names or any_named(lambda p: p.name.lower().startswith("requirements") and p.name.lower().endswith(".txt")):
+        detections.append(Detection("deps", "found a dependency manifest", project))
+
     # config (any .env-style file present)
     if any_named(lambda p: p.name.lower() == ".env" or p.name.lower().startswith(".env.") or p.name.lower().endswith(".env")):
         detections.append(Detection("config", "found .env / .env.example files", project))
