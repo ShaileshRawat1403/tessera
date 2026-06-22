@@ -134,6 +134,14 @@ tessera-todo
   prioritized backlog, coverage, owner-grouped report
   TodoPack: implements JobPack
 
+tessera-deps
+  Dependency schema (pydantic BaseModel)
+  manifest parsers (requirements / pyproject / package.json / cargo / go.mod)
+  pinning classifier (pinned / ranged / unpinned per ecosystem)
+  audit validator (unpinned, duplicate, conflicting constraints)
+  inventory, coverage, duplicates report
+  DepsPack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -620,6 +628,28 @@ project directory
 Priority is assigned by marker class so the backlog sorts itself: `FIXME`/`HACK`/`XXX`/`BUG` are high, `TODO`/`REFACTOR` normal, `NOTE`/`OPTIMIZE`/`DEPRECATED` low. The `by_owner.md` artifact turns `TODO(owner):` annotations into per-person worklists. Detection is intentionally permissive (it matches the marker anywhere on a line, not only inside a parsed comment) which trades a few false positives for being fully language-agnostic.
 
 Contract note: fourteenth JobPack implementer; core untouched. Fourteen JobPacks plus the in-core example and the app, all on the unchanged v0.1 contract.
+
+## 5p. Deps pack v0.1 (dependency pinning audit)
+
+The deps pack audits dependency manifests for supply-chain hygiene. It is a deliberate complement to the repo pack: repo reports *that* a manifest declares dependencies; deps analyses *how* — how tightly each is pinned, and whether the same dependency is declared inconsistently across manifests.
+
+```text
+project directory
+  ↓ load_deps_records()
+    walk for requirements*.txt / pyproject.toml / package.json / Cargo.toml / go.mod
+    parse each into Dependency(name, ecosystem, scope, constraint, pinning)
+    pinning classified per ecosystem: pinned (exact) / ranged (bounded) / unpinned
+  ↓ validate_deps_records()
+    unpinned_dependency, duplicate_dependency (same name across manifests),
+    conflicting_constraint (same name, different constraints across manifests)
+  ↓ write_artifacts()
+    dependencies.jsonl, index.md, validation_report.md, coverage_report.md,
+    duplicates.md
+```
+
+`conflicting_constraint` is the highest-value finding: a dependency pinned to `==2.31.0` in one file and `>=2.0` in another is the kind of drift that produces "works on my machine" bugs. Pinning classification is ecosystem-aware (npm `^1.2.3` is ranged, `1.2.3` is exact; cargo bare versions are caret-ranged; go `require` lines are exact), so the coverage numbers mean the same thing across a polyglot repo. Like the repo and config packs, manifest parsing is best-effort and never resolves a lockfile or hits the network.
+
+Contract note: fifteenth JobPack implementer; core untouched.
 
 ## 6. Schema and type policy
 
