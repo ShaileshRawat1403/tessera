@@ -85,3 +85,29 @@ def test_round_trip(tmp_path: Path):
     for line in (out / "links.jsonl").read_text().splitlines():
         link = Link.model_validate_json(line)
         assert link.source_file
+
+
+# ---------- precision: don't report orphans on non-markdown-linked docsets ----------
+
+
+def test_orphans_suppressed_without_md_link_graph(tmp_path: Path):
+    # Sphinx/mkdocs-style: several docs, navigated by a toctree, not by inline
+    # markdown links between them. Orphan-by-markdown-link is meaningless here.
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    for name in ("intro.md", "api.md", "guide.md", "faq.md"):
+        (docs / name).write_text(f"# {name}\n\nSome prose with no cross-doc markdown links.\n", encoding="utf-8")
+    out = tmp_path / "links_pack"
+    ctx = RunContext(job_name="links", output_dir=out)
+    LinksPack().run(input_path=docs, ctx=ctx, options={})
+    codes = {f.code for f in ctx.metadata["findings"]}
+    assert "orphan_doc" not in codes  # no md link graph -> no orphan noise
+
+
+def test_orphans_reported_with_md_link_graph(tmp_path: Path):
+    out = tmp_path / "links_pack"
+    ctx = RunContext(job_name="links", output_dir=out)
+    LinksPack().run(input_path=DOCS, ctx=ctx, options={})
+    codes = {f.code for f in ctx.metadata["findings"]}
+    # examples/links/docs cross-links index<->guide<->install -> orphan.md flagged
+    assert "orphan_doc" in codes

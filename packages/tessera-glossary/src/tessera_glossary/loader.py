@@ -67,16 +67,26 @@ def load_glossary_records(input_path: Path, options: dict[str, Any]) -> list[Ter
     return terms
 
 
-def _abbreviation_clusters(counts: dict[str, int]) -> list[dict[str, Any]]:
-    """Group co-occurring forms that map to the same canonical concept."""
+# A minority spelling must appear at least this many times to count as drift.
+# Filters out single coincidental tokens (e.g. one stray `btn`) that would
+# otherwise create noisy clusters on a large codebase.
+MIN_MINORITY_COUNT = 2
+
+
+def _abbreviation_clusters(counts: dict[str, int], min_minority: int = MIN_MINORITY_COUNT) -> list[dict[str, Any]]:
+    """Group co-occurring forms that map to the same canonical concept.
+
+    A form is kept only if it appears at least ``min_minority`` times, so a
+    one-off token does not get reported as a terminology inconsistency.
+    """
     by_canonical: dict[str, dict[str, int]] = defaultdict(dict)
     for word, count in counts.items():
         canon = ABBREVIATIONS.get(word)
-        if canon:
+        if canon and count >= min_minority:
             by_canonical[canon][word] = count
     clusters: list[dict[str, Any]] = []
     for canon, forms in by_canonical.items():
-        if len(forms) > 1:  # more than one spelling of the same concept is used
+        if len(forms) > 1:  # more than one (non-trivial) spelling of the concept
             recommended = max(forms.items(), key=lambda kv: kv[1])[0]
             clusters.append({
                 "concept": canon,
