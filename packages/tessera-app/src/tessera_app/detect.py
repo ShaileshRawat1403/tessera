@@ -91,6 +91,10 @@ def detect_packs(project: Path) -> list[Detection]:
     if any_suffix(".py"):
         detections.append(Detection("docs", "found Python source for docstring coverage", project))
 
+    # sql (any .sql files)
+    if any_suffix(".sql"):
+        detections.append(Detection("sql", "found .sql files", project))
+
     # changelog (a git repo, or a commits.jsonl)
     if (project / ".git").exists():
         detections.append(Detection("changelog", "found a git repository", project))
