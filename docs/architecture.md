@@ -113,6 +113,13 @@ tessera-openapi
   endpoint catalog, validation, coverage, tag-grouped surface
   OpenApiPack: implements JobPack
 
+tessera-docs
+  DocSymbol schema (pydantic BaseModel)
+  ast scanner (modules/classes/functions/methods + docstring presence)
+  coverage validator (missing docstrings by kind, low-coverage threshold)
+  symbols index, coverage report, undocumented list
+  DocsPack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -531,6 +538,30 @@ spec file (.json / .yaml)
 The load-bearing lint is `path_param_not_declared`: a `{param}` in a path template with no matching `parameters` entry is a real bug that breaks generated clients and docs. The pack handles both spec dialects — OpenAPI 3.x `requestBody`/`servers` and Swagger 2.0 `in: body` params/`host` — behind one `Endpoint` shape, so downstream consumers do not care which dialect produced the catalog.
 
 Contract note: eleventh JobPack implementer; core untouched. Spec parsing lives in `normalize`, lint rules in `validate`. Eleven packs now span tabular rows, document files, folders, graphs, corpora, repo trees, curl traces, env config, git history, and API specs — all on the same v0.1 contract.
+
+## 5m. Docs pack v0.1 (Python docstring coverage)
+
+The docs pack measures docstring coverage for a Python codebase. It parses each file with the standard-library `ast` module and never imports or executes the code — important, since the target may have side effects or uninstalled dependencies.
+
+```text
+project directory
+  ↓ load_docs_records()
+    discover_py_files(): walk .py, skip build/vendor dirs and (by default) tests
+    extract_symbols(): ast.parse each file; record the module symbol plus every
+                       class/function/method with ast.get_docstring presence;
+                       public = name does not start with "_"
+  ↓ validate_docs_records()
+    missing_module/class/function/method_docstring, low_doc_coverage (< 80%),
+    parse_error, no_public_symbols
+  ↓ write_artifacts()
+    symbols.jsonl, index.md, validation_report.md,
+    coverage_report.md (by kind + lowest-coverage files),
+    undocumented.md (every undocumented public symbol with file:line)
+```
+
+`undocumented.md` is the actionable artifact: a file:line list a developer can work straight down. Privates and dunders are excluded from the public-coverage denominator, matching the convention of tools like interrogate, so the number reflects the API surface that actually needs docs.
+
+Contract note: twelfth JobPack implementer; core untouched. `ast` parsing in `normalize`, coverage rules in `validate`. Twelve JobPacks (plus the in-core example) and the app now ride the v0.1 contract without a single change to `tessera-core` since it was written.
 
 ## 6. Schema and type policy
 
