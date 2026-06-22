@@ -184,6 +184,13 @@ tessera-license
   license inventory, validation, coverage
   LicensePack: implements JobPack
 
+tessera-gha
+  WorkflowItem / WorkflowInfo schemas (pydantic BaseModel)
+  workflow parser (jobs/steps/uses/run, SHA-pin detection, injection regex)
+  security validator (unpinned action, script injection, risky trigger, perms/timeout)
+  step + workflow inventories, validation, coverage
+  GhaPack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -824,6 +831,27 @@ project directory
 Two findings carry the value: `copyleft_license` surfaces GPL/AGPL obligations a team must review before distribution, and `license_mismatch` catches the common drift where the LICENSE file and the manifest disagree (e.g. a relicensing that updated one but not the other). Detection is signature-based over the license text, so it recognizes the common licenses without any network lookup or embedded full-text corpus.
 
 Contract note: twenty-first JobPack implementer; core untouched. Twenty-one JobPacks plus the in-core example and the app, all still on the unchanged v0.1 contract — the moat is the breadth of domains over one stable interface.
+
+## 5w. GHA pack v0.1 (GitHub Actions security lint)
+
+The gha pack parses GitHub Actions workflows and flags the security and hygiene mistakes that cause real CI incidents. It reads YAML only.
+
+```text
+.github/workflows/*.yml
+  ↓ load_gha_records()
+    parse each workflow (note: PyYAML parses the bare `on:` key as boolean True,
+    handled explicitly); collect jobs/steps; for `uses` detect SHA-pinning
+    (40-hex), for `run` detect interpolation of untrusted github.event.* fields
+  ↓ validate_gha_records()
+    script_injection_risk (error), unpinned_action, risky_trigger
+    (pull_request_target / workflow_run), missing_permissions, missing_timeout
+  ↓ write_artifacts()
+    items.jsonl, workflows.jsonl, index.md, validation_report.md, coverage_report.md
+```
+
+Two findings carry real security weight. `script_injection_risk` catches the classic pattern where `${{ github.event.issue.title }}` is interpolated straight into a shell `run:` block — an attacker controls that title, so this is remote code execution in CI; the fix is to pass it through an `env:` var. `unpinned_action` enforces SHA-pinning: a tag like `@v4` is mutable and can be repointed to malicious code, so third-party actions should be pinned to a commit SHA. The `on: True` PyYAML quirk is handled explicitly so triggers are read correctly.
+
+Contract note: twenty-second JobPack implementer; core untouched.
 
 ## 6. Schema and type policy
 
