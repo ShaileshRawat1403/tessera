@@ -189,3 +189,56 @@ def test_duplicate_request_detected():
     r2 = parse_curl(cmd, "b")
     findings = validate_api_records([r1, r2])
     assert any(f.code == "duplicate_request" for f in findings)
+
+
+# ---------- v0.2: shape-based secret detection ----------
+# Tokens are constructed at runtime (concatenation) so no real-provider-shaped
+# literal is committed to the repo (which would trip secret-scanning).
+
+from tessera_api.redact import detect_secret_shape  # noqa: E402
+
+_GH = "ghp_" + "A1b2C3d4" * 5  # ghp_ + 40 chars -> github_token shape
+_AWS = "AKIA" + "B2C3D4E5F6G7H8I9"  # AKIA + 16 -> aws_access_key_id
+_JWT = "eyJ" + "abcDEF123" + "." + "ghiJKL456" + "." + "mnoPQR789"  # jwt shape
+
+
+def test_detect_secret_shape_patterns():
+    assert detect_secret_shape(_GH) == "github_token"
+    assert detect_secret_shape(_AWS) == "aws_access_key_id"
+    assert detect_secret_shape(_JWT) == "jwt"
+
+
+def test_detect_secret_shape_negatives():
+    assert detect_secret_shape("application/json") is None
+    assert detect_secret_shape("Mozilla/5.0") is None
+    assert detect_secret_shape("123e4567-e89b-12d3-a456-426614174000") is None  # UUID
+    assert detect_secret_shape("short") is None
+
+
+def test_secret_in_custom_header_redacted(tmp_path):
+    cmd = f'curl https://api.test/v1/data -H "X-Trace-Token: {_GH}" -H "Accept: application/json"'
+    r = parse_curl(cmd, "r1")
+    # the custom header value is redacted and the raw token is gone
+    assert r.headers["X-Trace-Token"] == "(redacted)"
+    assert _GH not in json.dumps(r.model_dump())
+    assert any(red.kind == "github_token" for red in r.redactions)
+
+
+def test_secret_in_nonstandard_location_finding(tmp_path):
+    df = tmp_path / "custom.curl"
+    df.write_text(f'curl "https://api.test/items?trace={_JWT}"\n', encoding="utf-8")
+    out = tmp_path / "api_pack"
+    ctx = RunContext(job_name="api", output_dir=out)
+    ApiPack().run(input_path=df, ctx=ctx, options={})
+    codes = {f.code for f in ctx.metadata["findings"]}
+    assert "secret_in_nonstandard_location" in codes
+    # and the raw token leaked nowhere
+    for artifact_file in out.iterdir():
+        assert _JWT not in artifact_file.read_text(encoding="utf-8")
+
+
+def test_shape_secret_in_body(tmp_path):
+    cmd = f"curl -X POST https://api.test/x -d '{{\"note\": \"{_AWS}\"}}'"
+    r = parse_curl(cmd, "r1")
+    assert _AWS not in (r.body or "")
+    assert any(red.kind == "aws_access_key_id" for red in r.redactions)

@@ -16,6 +16,7 @@ Redaction happens before a value is ever written into an `ApiRequest`. The canon
 - known secret query parameter names (`api_key`, `token`, `access_token`, `signature`, ...)
 - `-u user:pass` basic-auth flags
 - secret-ish keys inside request bodies (`password`, `client_secret`, `token`, ...)
+- **secret *shape* (v0.2)** — values that look like secrets regardless of field name: AWS keys (`AKIA…`), GitHub tokens (`ghp_…`), Slack/Stripe/Google/OpenAI keys, JWTs, private-key blocks, and high-entropy token strings. This catches secrets hiding in custom auth headers, odd query params, or body fields, and raises `secret_in_nonstandard_location` so you know a credential is somewhere unexpected. UUIDs and other common identifiers are excluded to avoid false positives.
 
 ## Compile an API pack
 
