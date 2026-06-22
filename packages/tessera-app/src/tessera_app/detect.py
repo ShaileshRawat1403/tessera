@@ -129,6 +129,10 @@ def detect_packs(project: Path) -> list[Detection]:
     if any_suffix(".py", ".js", ".ts", ".go", ".rs", ".java", ".rb", ".md", ".sql", ".sh"):
         detections.append(Detection("todo", "found source/doc files to scan for markers", project))
 
+    # license (a LICENSE file or a manifest that may declare one)
+    if any_named(lambda p: p.name.lower().startswith(("license", "licence")) or p.name.lower() == "copying") or (names & manifest_names):
+        detections.append(Detection("license", "found a LICENSE file or a manifest", project))
+
     # changelog (a git repo, or a commits.jsonl)
     if (project / ".git").exists():
         detections.append(Detection("changelog", "found a git repository", project))
