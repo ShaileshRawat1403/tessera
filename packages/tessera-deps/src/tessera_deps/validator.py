@@ -51,4 +51,43 @@ def validate_deps_records(deps: list[Dependency], options: dict[str, Any]) -> li
                     )
                 )
 
+    # --- lockfile-vs-manifest drift ---
+    locks: dict[str, dict[str, str]] = options.get("_locks", {})
+    ecosystems_with_deps = {d.ecosystem for d in deps}
+    for eco in sorted(ecosystems_with_deps):
+        eco_deps = [d for d in deps if d.ecosystem == eco]
+        locked = locks.get(eco)
+        if locked is None:
+            # requirements.txt is itself the pinned source; only flag a missing
+            # lock where one is the norm (npm/cargo).
+            if eco in ("npm", "cargo"):
+                findings.append(
+                    ValidationFinding(
+                        severity="info", code="lockfile_missing",
+                        message=f"{eco} dependencies are declared but no lockfile was found; builds are not reproducible",
+                        field="deps", metadata={"ecosystem": eco},
+                    )
+                )
+            continue
+        for d in eco_deps:
+            if d.name not in locked:
+                findings.append(
+                    ValidationFinding(
+                        severity="warning", code="declared_not_locked",
+                        message=f"{d.name} ({eco}) is declared in {d.source_file} but absent from the lockfile; the lock is stale",
+                        field="deps", metadata={"name": d.name, "ecosystem": eco, "source_file": d.source_file},
+                    )
+                )
+            elif d.pinning == "pinned" and d.constraint and locked[d.name]:
+                pinned_ver = d.constraint.lstrip("=^~ ")
+                if pinned_ver and locked[d.name] != pinned_ver:
+                    findings.append(
+                        ValidationFinding(
+                            severity="warning", code="locked_version_mismatch",
+                            message=f"{d.name} ({eco}) is pinned to {pinned_ver} but locked at {locked[d.name]}",
+                            field="deps", metadata={"name": d.name, "ecosystem": eco,
+                                                    "pinned": pinned_ver, "locked": locked[d.name]},
+                        )
+                    )
+
     return findings

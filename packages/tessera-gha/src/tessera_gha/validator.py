@@ -38,6 +38,9 @@ def validate_gha_records(items: list[WorkflowItem], options: dict[str, Any]) -> 
         if it.kind == "run" and it.run_injection:
             findings.append(f("error", "script_injection_risk",
                               f"{where}: run script interpolates an untrusted github.event field; use an env var"))
+        if it.is_checkout and it.persist_credentials and it.persist_credentials.lower() not in ("false", "0", "no"):
+            findings.append(f("warning", "persist_credentials",
+                              f"{where}: checkout keeps the GITHUB_TOKEN on disk (persist-credentials not disabled)"))
 
     # per-workflow
     for info in infos:
@@ -50,6 +53,14 @@ def validate_gha_records(items: list[WorkflowItem], options: dict[str, Any]) -> 
             wf_ = wf("warning", "risky_trigger",
                      f"{info.workflow}: uses {risky} which runs with repo secrets on untrusted input")
             findings.append(wf_)
+        # the canonical CI RCE: privileged trigger + checkout of attacker-controlled PR code
+        if info.has_risky_trigger and info.checks_out_untrusted_code:
+            findings.append(wf("error", "pull_request_target_checkout_rce",
+                               f"{info.workflow}: a privileged trigger (pull_request_target/workflow_run) checks out "
+                               f"PR-controlled code (head ref) with secrets in scope — a remote code execution risk"))
+        if info.write_all_permissions:
+            findings.append(wf("warning", "write_all_permissions",
+                               f"{info.workflow}: grants broad write permissions; scope them to the minimum needed"))
         if not info.has_top_permissions and info.jobs_without_permissions:
             findings.append(wf("info", "missing_permissions",
                                f"{info.workflow}: no explicit permissions; jobs {info.jobs_without_permissions} default to broad scopes"))

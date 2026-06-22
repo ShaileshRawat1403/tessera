@@ -108,3 +108,30 @@ def test_inventory_round_trip(tmp_path: Path):
     for line in (out / "config_inventory.jsonl").read_text().splitlines():
         restored = ConfigKey.model_validate_json(line)
         assert restored.name
+
+
+# ---------- v0.2: shape-based secret detection in values ----------
+from tessera_config.redact import detect_secret_shape  # noqa: E402
+
+_GH = "ghp_" + "A1b2C3d4" * 5  # constructed at runtime; not a committed literal
+
+
+def test_detect_secret_shape():
+    assert detect_secret_shape(_GH) == "github_token"
+    assert detect_secret_shape("8080") is None
+    assert detect_secret_shape("postgres://u@localhost/db") is None
+
+
+def test_secret_value_in_nonsecret_key(tmp_path: Path):
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    # key name is innocuous, but the VALUE is a token
+    (proj / ".env").write_text(f"WIDGET_ENDPOINT={_GH}\nAPP_PORT=8080\n", encoding="utf-8")
+    out = tmp_path / "config_pack"
+    ctx = RunContext(job_name="config", output_dir=out)
+    ConfigPack().run(input_path=proj, ctx=ctx, options={})
+    codes = {f.code for f in ctx.metadata["findings"]}
+    assert "secret_value_in_nonsecret_key" in codes
+    # the raw token must not leak into any artifact
+    for artifact_file in out.iterdir():
+        assert _GH not in artifact_file.read_text(encoding="utf-8")

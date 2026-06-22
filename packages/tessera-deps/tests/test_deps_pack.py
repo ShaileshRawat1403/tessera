@@ -92,3 +92,49 @@ def test_single_manifest_input(tmp_path: Path):
     deps = [json.loads(l) for l in (out / "dependencies.jsonl").read_text().splitlines()]
     names = {d["name"] for d in deps}
     assert {"rich", "typer", "flask", "requests"} <= names
+
+
+# ---------- v0.2: lockfile-vs-manifest drift ----------
+from tessera_deps.lockfiles import parse_lockfile  # noqa: E402
+
+
+def test_parse_npm_lock():
+    locked = parse_lockfile(SAMPLE / "package-lock.json")
+    assert locked.get("react") == "18.2.0"
+    assert locked.get("jest") == "29.0.0"
+    assert "left-pad" not in locked
+
+
+def test_declared_not_locked(tmp_path: Path):
+    _, ctx = _run(tmp_path)
+    drift = [f for f in ctx.metadata["findings"] if f.code == "declared_not_locked"]
+    names = {f.metadata.get("name") for f in drift}
+    # left-pad is declared in package.json but missing from the lockfile
+    assert "left-pad" in names
+    # react/jest are locked -> not flagged
+    assert "react" not in names and "jest" not in names
+
+
+def test_locked_mismatch(tmp_path: Path):
+    proj = tmp_path / "mm"
+    proj.mkdir()
+    (proj / "package.json").write_text('{"name":"x","dependencies":{"foo":"1.2.3"}}', encoding="utf-8")
+    (proj / "package-lock.json").write_text(
+        '{"lockfileVersion":3,"packages":{"node_modules/foo":{"version":"1.2.9"}}}', encoding="utf-8"
+    )
+    out = tmp_path / "deps_pack"
+    ctx = RunContext(job_name="deps", output_dir=out)
+    DepsPack().run(input_path=proj, ctx=ctx, options={})
+    codes = {f.code for f in ctx.metadata["findings"]}
+    assert "locked_version_mismatch" in codes
+
+
+def test_lockfile_missing(tmp_path: Path):
+    proj = tmp_path / "nolock"
+    proj.mkdir()
+    (proj / "package.json").write_text('{"name":"x","dependencies":{"foo":"^1.0.0"}}', encoding="utf-8")
+    out = tmp_path / "deps_pack"
+    ctx = RunContext(job_name="deps", output_dir=out)
+    DepsPack().run(input_path=proj, ctx=ctx, options={})
+    codes = {f.code for f in ctx.metadata["findings"]}
+    assert "lockfile_missing" in codes

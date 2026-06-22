@@ -38,7 +38,10 @@ drift_report.md          used-but-undocumented / set-but-undocumented / document
 ## Validation rules
 
 - `possible_committed_secret` — a secret-named key has a value in a real `.env`
+- `secret_value_in_nonsecret_key` — a value *shaped* like a secret (e.g. `MY_THING=ghp_…`) under a key whose name isn't secret-like; name-based detection alone would miss it
 - `missing_in_example` — used in code but not documented in any `.env.example`
 - `undocumented_env_key` — set in `.env` but not in any example
 - `unused_documented_key` — documented in an example but never used or set
 - `no_config_keys` — nothing found
+
+Secret detection screens values by shape (AWS/GitHub/Slack/Stripe/JWT/etc. + a conservative high-entropy heuristic) in addition to key names, with UUIDs excluded.

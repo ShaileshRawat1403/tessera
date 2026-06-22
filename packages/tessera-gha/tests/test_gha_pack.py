@@ -19,7 +19,7 @@ EX = REPO_ROOT / "examples" / "gha"
 def test_discover_workflows():
     wfs = discover_workflows(EX)
     names = {p.name for p in wfs}
-    assert names == {"ci.yml", "release.yml"}
+    assert names == {"ci.yml", "release.yml", "rce.yml"}
 
 
 def test_pin_detection():
@@ -83,3 +83,23 @@ def test_round_trip(tmp_path: Path):
     for line in (out / "items.jsonl").read_text().splitlines():
         i = WorkflowItem.model_validate_json(line)
         assert i.workflow
+
+
+# ---------- v0.2: RCE combo, persist-credentials, write-all ----------
+
+
+def test_rce_combo_and_perms(tmp_path: Path):
+    out = tmp_path / "gha_pack"
+    ctx = RunContext(job_name="gha", output_dir=out)
+    GhaPack().run(input_path=EX, ctx=ctx, options={})
+    codes = {f.code for f in ctx.metadata["findings"]}
+    assert "pull_request_target_checkout_rce" in codes   # rce.yml
+    assert "write_all_permissions" in codes               # rce.yml: permissions: write-all
+    assert "persist_credentials" in codes                  # rce.yml checkout persist-credentials: true
+
+
+def test_rce_requires_both_trigger_and_checkout(tmp_path: Path):
+    # ci.yml is pull_request_target but does NOT check out PR head -> no RCE finding
+    items = load_gha_records(EX, {})
+    ci_checkouts = [i for i in items if i.is_checkout and "ci.yml" in i.workflow]
+    assert all(not i.checkout_untrusted_ref for i in ci_checkouts)
