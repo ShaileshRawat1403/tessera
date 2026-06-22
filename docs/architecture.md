@@ -163,6 +163,13 @@ tessera-dockerfile
   instruction inventory, validation, coverage
   DockerfilePack: implements JobPack
 
+tessera-i18n
+  LocaleFile schema (pydantic BaseModel)
+  locale loader (json flatten, locale-name inference, reference selection)
+  coverage validator (missing/extra/empty keys, low coverage)
+  coverage table, per-locale missing-keys report
+  I18nPack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -738,6 +745,28 @@ Dockerfile(s)
 Multi-stage awareness is the detail that keeps the lint honest: `FROM base AS final` references an earlier `FROM python:3.12-slim AS base`, so it must not be flagged as an unpinned base image. The pack collects stage names on a first pass, then suppresses `unpinned_base_image`/`latest_tag` for `FROM <stage>` lines. The `secret_in_image` rule is the highest-value security finding: a secret baked into an `ENV`/`ARG` persists in the image's layer history even if later removed.
 
 Contract note: eighteenth JobPack implementer; core untouched.
+
+## 5t. i18n pack v0.1 (translation coverage)
+
+The i18n pack compares locale files against a reference and reports translation gaps. It flattens nested JSON keys so it works with both flat and structured locale formats.
+
+```text
+locale directory
+  ↓ load_i18n_records()
+    discover *.json (skipping package.json/tsconfig/...); infer locale from filename;
+    flatten nested keys to dot notation; pick reference (en, else most-keys);
+    per locale compute missing / extra / empty keys + coverage vs reference
+  ↓ validate_i18n_records()
+    missing_translations, extra_keys, empty_values, low_coverage (<90%),
+    single_locale, parse_error
+  ↓ write_artifacts()
+    locales.jsonl, index.md (coverage table), validation_report.md,
+    coverage_report.md, missing_keys.md (the actionable per-locale list)
+```
+
+Two design choices make it practical: keys are flattened (`menu.file.open`) so a missing leaf in a nested structure is caught, not just a missing top-level block; and the reference is auto-selected (`en` if present, else the most complete locale) so the pack needs no configuration to produce a useful first report. `missing_keys.md` is the artifact a translator works straight down.
+
+Contract note: nineteenth JobPack implementer; core untouched.
 
 ## 6. Schema and type policy
 

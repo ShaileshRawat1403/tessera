@@ -77,6 +77,10 @@ def detect_packs(project: Path) -> list[Detection]:
     if names & manifest_names or any_named(lambda p: p.name.lower().startswith("requirements") and p.name.lower().endswith(".txt")):
         detections.append(Detection("deps", "found a dependency manifest", project))
 
+    # i18n (a locales/ or i18n/ directory of JSON files)
+    if (project / "locales").is_dir() or (project / "i18n").is_dir():
+        detections.append(Detection("i18n", "found a locales/ or i18n/ directory", project))
+
     # config (any .env-style file present)
     if any_named(lambda p: p.name.lower() == ".env" or p.name.lower().startswith(".env.") or p.name.lower().endswith(".env")):
         detections.append(Detection("config", "found .env / .env.example files", project))
