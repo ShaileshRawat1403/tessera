@@ -177,6 +177,13 @@ tessera-schema
   schema catalog, validation, coverage
   SchemaPack: implements JobPack
 
+tessera-license
+  LicenseFinding schema (pydantic BaseModel)
+  license detector (content signatures + manifest license fields) + classifier
+  hygiene validator (copyleft, mismatch, missing file, unrecognized)
+  license inventory, validation, coverage
+  LicensePack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -795,6 +802,28 @@ schema files
 The load-bearing finding is `required_not_in_properties`: a `required` entry with no matching `properties` declaration is a schema that can never validate as intended, and it is easy to introduce during refactors. `additional_properties_unset` surfaces the open-by-default behavior that silently lets unexpected fields through — a common source of data-quality drift.
 
 Contract note: twentieth JobPack implementer; core untouched.
+
+## 5v. License pack v0.1 (license hygiene, offline)
+
+The license pack identifies a project's license and classifies it, entirely offline. It deliberately does not do per-dependency license resolution (which needs a network registry); it inspects what the repository itself declares — LICENSE files and manifest `license` fields.
+
+```text
+project directory
+  ↓ load_license_records()
+    read LICENSE / LICENCE / COPYING (identify by content signature);
+    read license fields from pyproject / package.json / Cargo.toml;
+    normalize to an SPDX-ish id; classify (permissive / weak-copyleft /
+    copyleft / public-domain / unknown)
+  ↓ validate_license_records()
+    no_license, missing_license_file, copyleft_license, license_mismatch,
+    unrecognized_license
+  ↓ write_artifacts()
+    licenses.jsonl, index.md, validation_report.md, coverage_report.md
+```
+
+Two findings carry the value: `copyleft_license` surfaces GPL/AGPL obligations a team must review before distribution, and `license_mismatch` catches the common drift where the LICENSE file and the manifest disagree (e.g. a relicensing that updated one but not the other). Detection is signature-based over the license text, so it recognizes the common licenses without any network lookup or embedded full-text corpus.
+
+Contract note: twenty-first JobPack implementer; core untouched. Twenty-one JobPacks plus the in-core example and the app, all still on the unchanged v0.1 contract — the moat is the breadth of domains over one stable interface.
 
 ## 6. Schema and type policy
 
