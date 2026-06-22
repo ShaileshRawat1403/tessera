@@ -149,6 +149,13 @@ tessera-tests
   test inventory, coverage, not-running report
   TestsPack: implements JobPack
 
+tessera-links
+  Link schema (pydantic BaseModel)
+  markdown link extractor + heading-anchor collector (fence-aware)
+  resolver (internal file existence, anchor existence, orphan detection)
+  link inventory, coverage, broken-links report
+  LinksPack: implements JobPack
+
 tessera-app  (CLI-only plugin; orchestrates JobPacks, is not one)
   detect (which packs apply to a project directory)
   orchestrator (run applicable packs via load_jobpacks(), summarize, write manifest)
@@ -682,6 +689,28 @@ The headline finding is `no_assertion_test`: a `test_*` function with zero detec
 One self-referential detail: the pack's own `TestCase` pydantic model sets `__test__ = False` so pytest does not try to collect the domain model as a test class — a small but real interaction between a pack that analyzes tests and the test runner it lives under.
 
 Contract note: sixteenth JobPack implementer; core untouched.
+
+## 5r. Links pack v0.1 (markdown link integrity)
+
+The links pack resolves every inline Markdown link and flags the ones that point nowhere: missing target files, dead heading anchors, and docs nothing links to. External URLs are inventoried but never fetched, keeping the check offline and deterministic.
+
+```text
+project / docs directory
+  ↓ load_link_records()
+    discover_md_files(); extract_links() (fence-aware inline [text](href));
+    classify external / mailto / anchor / internal;
+    internal: resolve target relative to the source file, check existence;
+    anchor: GitHub-style slugify headings of the target file and check membership;
+    track which md files are referenced -> orphan detection
+  ↓ validate_link_records()
+    broken_link, broken_anchor, orphan_doc
+  ↓ write_artifacts()
+    links.jsonl, index.md, validation_report.md, coverage_report.md, broken.md
+```
+
+The deliberate non-goal is external link checking: fetching URLs would make the pack slow, flaky, and network-dependent, violating the hub's no-network discipline. Internal integrity — the links most likely to silently rot during refactors — is fully checkable offline, and that is where the value is. Anchor resolution reuses the same slug algorithm GitHub applies to headings, so `foo.md#my-section` is verified against the actual headings of `foo.md`.
+
+Contract note: seventeenth JobPack implementer; core untouched. Seventeen JobPacks (plus the in-core example) and the app, all still on the v0.1 contract.
 
 ## 6. Schema and type policy
 
