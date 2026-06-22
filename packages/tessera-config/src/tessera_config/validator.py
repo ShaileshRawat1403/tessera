@@ -27,6 +27,13 @@ def validate_config_records(keys: list[ConfigKey], options: dict[str, Any]) -> l
             findings.append(f("warning", "possible_committed_secret",
                               f"{k.name} holds a secret value in a .env file; ensure it is gitignored"))
 
+        # A secret VALUE under a key not named like a secret — name-based
+        # detection would miss this (e.g. MY_THING=ghp_...).
+        shape = k.metadata.get("secret_by_shape")
+        if shape and k.in_env:
+            findings.append(f("warning", "secret_value_in_nonsecret_key",
+                              f"{k.name} holds a value shaped like a {shape}, though its name is not secret-like"))
+
         # used in code but not documented anywhere
         if k.in_code and not k.in_example:
             findings.append(f("warning", "missing_in_example",

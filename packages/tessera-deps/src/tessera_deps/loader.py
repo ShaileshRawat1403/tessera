@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from tessera_deps.lockfiles import LOCKFILES, parse_lockfile
 from tessera_deps.parsers import (
     parse_cargo,
     parse_go_mod,
@@ -45,7 +46,9 @@ def load_deps_records(input_path: Path, options: dict[str, Any]) -> list[Depende
         deps.extend(_dispatch(input_path, input_path.name))
         if deps or _dispatch(input_path, input_path.name):
             manifests.append(input_path.name)
-    else:
+    locks: dict[str, dict[str, str]] = {}
+    lock_files: list[str] = []
+    if not input_path.is_file():
         for p in sorted(root.rglob("*")):
             if any(part in _IGNORE for part in p.relative_to(root).parts):
                 continue
@@ -56,7 +59,15 @@ def load_deps_records(input_path: Path, options: dict[str, Any]) -> list[Depende
             if parsed:
                 deps.extend(parsed)
                 manifests.append(rel)
+            eco = LOCKFILES.get(p.name.lower())
+            if eco:
+                locked = parse_lockfile(p)
+                if locked:
+                    locks.setdefault(eco, {}).update(locked)
+                    lock_files.append(rel)
 
     options["_manifests"] = manifests
+    options["_locks"] = locks
+    options["_lock_files"] = lock_files
     options["_root"] = str(root)
     return deps

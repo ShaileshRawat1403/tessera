@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from tessera_config.envparse import parse_env
-from tessera_config.redact import is_secret_name, mask
+from tessera_config.redact import detect_secret_shape, is_secret_name, mask
 from tessera_config.scan import find_code_references, find_env_files
 from tessera_config.schema import ConfigKey
 
@@ -51,12 +51,19 @@ def load_config_records(input_path: Path, options: dict[str, Any]) -> list[Confi
     records: list[ConfigKey] = []
     for name in sorted(keys):
         st = keys[name]
-        secret = is_secret_name(name)
         value = st["value"]
+        name_secret = is_secret_name(name)
+        shape = detect_secret_shape(value) if value else None
+        secret = name_secret or bool(shape)
         if value:
             preview = mask(value) if secret else "(set)"
         else:
             preview = ""
+        meta: dict[str, Any] = {}
+        # a secret VALUE under a key that is NOT named like a secret is the
+        # case name-based detection misses (e.g. MY_THING=ghp_...)
+        if shape and not name_secret:
+            meta["secret_by_shape"] = shape
         records.append(
             ConfigKey(
                 name=name,
@@ -66,6 +73,7 @@ def load_config_records(input_path: Path, options: dict[str, Any]) -> list[Confi
                 is_secret=secret,
                 value_preview=preview,
                 sources=sorted(st["sources"]),
+                metadata=meta,
             )
         )
 

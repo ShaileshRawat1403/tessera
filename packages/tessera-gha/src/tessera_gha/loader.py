@@ -9,6 +9,21 @@ import yaml
 from tessera_gha.schema import WorkflowInfo, WorkflowItem
 
 _SHA_RE = re.compile(r"@[0-9a-f]{40}$")
+_RISKY_TRIGGERS = {"pull_request_target", "workflow_run"}
+# refs that resolve to attacker-controlled PR code
+_UNTRUSTED_REF_RE = re.compile(
+    r"github\.event\.pull_request\.head\.(?:sha|ref)|github\.head_ref|"
+    r"github\.event\.workflow_run\.head_(?:sha|branch)",
+    re.IGNORECASE,
+)
+
+
+def _is_write_all(permissions: object) -> bool:
+    if permissions == "write-all":
+        return True
+    if isinstance(permissions, dict):
+        return any(str(v).lower() == "write" for v in permissions.values()) and len(permissions) >= 5
+    return False
 # untrusted event fields that are dangerous when interpolated into run: scripts
 _INJECTION_RE = re.compile(
     r"\$\{\{\s*github\.event\.(?:issue\.title|issue\.body|pull_request\.title|"
@@ -67,6 +82,8 @@ def load_gha_records(input_path: Path, options: dict[str, Any]) -> list[Workflow
             triggers=_trigger_keys(on),
             jobs=list(jobs.keys()) if isinstance(jobs, dict) else [],
             has_top_permissions="permissions" in doc,
+            has_risky_trigger=bool(set(_trigger_keys(on)) & _RISKY_TRIGGERS),
+            write_all_permissions=_is_write_all(doc.get("permissions")),
         )
 
         if isinstance(jobs, dict):
@@ -77,15 +94,29 @@ def load_gha_records(input_path: Path, options: dict[str, Any]) -> list[Workflow
                     info.jobs_without_permissions.append(str(job_name))
                 if "timeout-minutes" not in job:
                     info.jobs_without_timeout.append(str(job_name))
+                if _is_write_all(job.get("permissions")):
+                    info.write_all_permissions = True
                 for step in job.get("steps", []) or []:
                     if not isinstance(step, dict):
                         continue
                     name = str(step.get("name", ""))
                     if "uses" in step:
                         action = str(step["uses"])
+                        with_block = step.get("with", {}) or {}
+                        is_checkout = action.split("@")[0].lower().endswith("actions/checkout") or \
+                            action.lower().startswith("actions/checkout")
+                        ref = str(with_block.get("ref", "")) if isinstance(with_block, dict) else ""
+                        untrusted = bool(_UNTRUSTED_REF_RE.search(ref))
+                        persist = ""
+                        if isinstance(with_block, dict) and "persist-credentials" in with_block:
+                            persist = str(with_block.get("persist-credentials"))
+                        if is_checkout and untrusted:
+                            info.checks_out_untrusted_code = True
                         items.append(WorkflowItem(
                             workflow=rel, job=str(job_name), step=name, kind="uses",
                             action=action, action_pinned=bool(_SHA_RE.search(action)),
+                            is_checkout=is_checkout, checkout_untrusted_ref=untrusted,
+                            persist_credentials=persist,
                         ))
                     elif "run" in step:
                         run = str(step["run"])
