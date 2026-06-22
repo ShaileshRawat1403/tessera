@@ -91,6 +91,43 @@ def test_safe_statements_not_flagged(tmp_path: Path):
     assert len(delete_findings) == 1
 
 
+def test_migration_safety_findings(tmp_path: Path):
+    _, ctx = _run(tmp_path)
+    codes = {f.code for f in ctx.metadata["findings"]}
+    assert "add_not_null_without_default" in codes   # ALTER ... ADD COLUMN phone TEXT NOT NULL
+    assert "drop_column" in codes                     # ALTER ... DROP COLUMN active
+    assert "rename_breaks_compatibility" in codes      # ALTER ... RENAME TO audit_logs
+    assert "truncate_table" in codes                   # TRUNCATE TABLE audit_logs
+    assert "create_table_without_if_not_exists" in codes  # users / logs
+
+
+def test_add_column_with_default_not_flagged(tmp_path: Path):
+    """ADD COLUMN ... DEFAULT '' is safe and must not raise add_not_null_without_default."""
+    _, ctx = _run(tmp_path)
+    offenders = [
+        f for f in ctx.metadata["findings"]
+        if f.code == "add_not_null_without_default"
+    ]
+    # only the phone column (no default) should be flagged, not nickname (has default)
+    assert len(offenders) == 1
+
+
+def test_if_not_exists_create_not_flagged(tmp_path: Path):
+    """CREATE TABLE IF NOT EXISTS settings must not trigger the idempotency info."""
+    from tessera_sql.parse import classify, statement_flags
+    kind, _ = classify("CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY)")
+    flags = statement_flags(kind, "CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY)")
+    assert kind == "create_table"
+    assert flags["if_not_exists"] is True
+
+
+def test_truncate_classified():
+    from tessera_sql.parse import classify
+    kind, target = classify("TRUNCATE TABLE audit_logs")
+    assert kind == "truncate"
+    assert target == "audit_logs"
+
+
 def test_artifacts_and_tables(tmp_path: Path):
     out, _ = _run(tmp_path)
     names = {p.name for p in out.iterdir()}

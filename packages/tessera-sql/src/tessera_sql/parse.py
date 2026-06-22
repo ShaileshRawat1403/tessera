@@ -76,6 +76,8 @@ def classify(stmt: str) -> tuple[str, str]:
         return "create_index", grab(rf"index\s+(?:if\s+not\s+exists\s+)?{_IDENT}")
     if low.startswith("alter"):
         return "alter", grab(rf"alter\s+table\s+{_IDENT}")
+    if low.startswith("truncate"):
+        return "truncate", grab(rf"truncate\s+(?:table\s+)?{_IDENT}")
     if low.startswith("drop"):
         return "drop", grab(rf"drop\s+\w+\s+(?:if\s+exists\s+)?{_IDENT}")
     if low.startswith("insert"):
@@ -96,9 +98,20 @@ def statement_flags(kind: str, stmt: str) -> dict:
         flags["has_where"] = bool(re.search(r"\bwhere\b", low))
     if kind == "drop":
         flags["if_exists"] = "if exists" in low
+        flags["drops_column"] = bool(re.search(r"\bdrop\s+column\b", low))  # only via ALTER, but guard anyway
     if kind == "select":
         # SELECT * (not count(*))
         flags["select_star"] = bool(re.search(r"select\s+\*", low))
+    if kind == "create_table":
+        flags["if_not_exists"] = "if not exists" in low
+    if kind == "alter":
+        adds_col = bool(re.search(r"\badd\s+(column\s+)?", low))
+        flags["adds_column"] = adds_col
+        flags["drops_column"] = bool(re.search(r"\bdrop\s+(column\s+)?", low))
+        flags["renames"] = bool(re.search(r"\brename\b", low))
+        # locking risk: ADD COLUMN ... NOT NULL without a DEFAULT rewrites the table
+        if adds_col and re.search(r"\bnot\s+null\b", low) and not re.search(r"\bdefault\b", low):
+            flags["add_not_null_without_default"] = True
     return flags
 
 
