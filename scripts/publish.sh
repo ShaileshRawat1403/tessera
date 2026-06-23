@@ -12,7 +12,8 @@ set -uo pipefail
 
 PY="${PY:-$([ -x .venv/bin/python ] && echo .venv/bin/python || echo python)}"
 DELAY="${PUBLISH_DELAY:-12}"
-RETRIES="${PUBLISH_RETRIES:-5}"
+RETRIES="${PUBLISH_RETRIES:-9}"
+MAX_BACKOFF="${PUBLISH_MAX_BACKOFF:-600}"
 
 if ! ls dist/*.whl >/dev/null 2>&1; then
   echo "no artifacts in dist/ — run 'make build' first" >&2
@@ -40,6 +41,7 @@ for pkg in $pkgs; do
     echo ".. $pkg throttled or failed; waiting ${backoff}s (attempt $attempt/$RETRIES)"
     sleep "$backoff"
     backoff=$((backoff * 2))
+    [ "$backoff" -gt "$MAX_BACKOFF" ] && backoff="$MAX_BACKOFF"
     attempt=$((attempt + 1))
   done
   sleep "$DELAY"
