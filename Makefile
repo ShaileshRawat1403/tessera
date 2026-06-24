@@ -36,5 +36,5 @@ check: ## Validate built artifacts (run after `make build`)
 publish-test: ## Upload to TestPyPI (needs a TestPyPI token; dry run)
 	PY="$(PY)" TWINE_REPOSITORY=testpypi ./scripts/publish.sh
 
-publish: ## Upload to real PyPI (paced + retried; needs your PyPI token)
+publish: ## Upload to real PyPI (only new projects, paced; needs your PyPI token)
 	PY="$(PY)" ./scripts/publish.sh

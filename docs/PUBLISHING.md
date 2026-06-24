@@ -37,6 +37,25 @@ export TWINE_PASSWORD=pypi-XXXX...   # your full token, including the pypi- pref
 make publish
 ```
 
+### The new-project rate limit (expect this on a fresh account)
+
+PyPI caps how many brand-new projects an account can create (documented as
+20/hour per user, but fresh accounts hit a stricter, lower wall as anti-spam).
+With 24 new projects at once you *will* hit `429 Too many new projects created`.
+Two things matter:
+
+- **Every attempt counts, including rejected ones.** Do not retry into a 429 and
+  do not loop with backoff; that keeps the limiter pinned. `scripts/publish.sh`
+  checks PyPI first and only attempts genuinely-new projects, paces them, and
+  stops on the first failure for exactly this reason.
+- **The dependable fix is a limit increase.** Open a request at
+  https://github.com/pypi/support/issues/new/choose ("limit increase"), explain
+  it is one monorepo of related `tesserakit-*` packages, and PyPI staff raise the
+  ceiling (usually a day or two). Then `make publish` finishes the rest cleanly.
+
+This only bites the first publish. Once the projects exist, version bumps and the
+tag-triggered CI workflow are not "new project" creates and are not limited.
+
 ### Optional dry run on TestPyPI
 
 Needs a separate TestPyPI account + token (https://test.pypi.org/).
