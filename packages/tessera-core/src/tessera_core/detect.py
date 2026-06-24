@@ -4,6 +4,7 @@ import re
 import statistics
 from dataclasses import dataclass
 from dataclasses import field as dc_field
+from difflib import SequenceMatcher
 from typing import Iterable
 
 
@@ -39,7 +40,15 @@ _HEADER_PREFIXES = {
 _HEADER_SUFFIXES = {
     "text", "field", "column", "value", "data", "str", "string",
     "content", "body", "msg",
+    # v0.2: compound-header normalization — "expected_output" -> "expected", "ground_truth_answer" -> "ground_truth"
+    "output", "answer", "result",
 }
+
+_FUZZY_THRESHOLD = 0.82  # SequenceMatcher ratio; catches 1-2 char typos in typical field names
+
+
+def _fuzzy_score(a: str, b: str) -> float:
+    return SequenceMatcher(None, a, b).ratio()
 
 
 def _tokens(text: str) -> list[str]:
@@ -68,6 +77,7 @@ def detect_column(
       1.00  manual override (validated against headers)
       0.95  exact match (raw or normalized)
       0.85  token match (candidate is a token of the header)
+      0.75  fuzzy match (edit-distance >= 0.82; catches typos)
       0.70  substring match
       0.00  no match
     """
@@ -116,6 +126,7 @@ def detect_column(
     for header in headers:
         header_tokens = set(_tokens(header))
         header_lower = header.lower()
+        header_norm = _normalize_header(header)
         for cand in candidate_set:
             cand_tokens = set(_tokens(cand))
             if cand_tokens and cand_tokens.issubset(header_tokens):
@@ -123,7 +134,17 @@ def detect_column(
             elif cand in header_lower:
                 score, reason = 0.70, f"substring match: {cand}"
             else:
-                continue
+                # fuzzy: compare normalized header against each token of the candidate
+                cand_norm = _normalize_header(cand)
+                ratio = max(
+                    _fuzzy_score(header_lower, cand),
+                    _fuzzy_score(header_norm, cand_norm),
+                )
+                if ratio >= _FUZZY_THRESHOLD:
+                    score = 0.75
+                    reason = f"fuzzy match: {cand} (ratio {ratio:.2f})"
+                else:
+                    continue
             if score > best[0]:
                 best = (score, header, reason)
 

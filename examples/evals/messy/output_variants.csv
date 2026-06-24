@@ -1,0 +1,5 @@
+id,user_message,expected_output,rag_context
+O-001,What is the refund window?,Refunds are accepted within 30 days of purchase.,Refund policy: 30-day window for unused subscriptions.
+O-002,How do I export my data?,Go to Settings > Export > Download CSV.,Data exports are available in CSV and JSON formats.
+O-003,Is there a free trial?,Yes — the free trial lasts 14 days with full feature access.,Trial accounts are auto-converted to a free tier at expiry.
+O-004,Can I use my own domain?,Custom domains are supported on the Business plan and above.,Custom domain setup requires DNS propagation of up to 48 hours.

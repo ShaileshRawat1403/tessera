@@ -36,6 +36,15 @@ INPUT_CANDIDATES = [
     "ticket",
     "body",
     "question_text",
+    # v0.2 additions
+    "human_message",
+    "human_turn",
+    "user_turn",
+    "utterance",
+    "instruction",
+    "task",
+    "task_description",
+    "statement",
 ]
 EXPECTED_CANDIDATES = [
     "golden_answer",
@@ -60,6 +69,23 @@ EXPECTED_CANDIDATES = [
     "reply",
     "agent_response",
     "team_response",
+    # v0.2 additions: model/LLM output variants
+    "expected_output",
+    "model_output",
+    "llm_output",
+    "ai_output",
+    "assistant_output",
+    "bot_output",
+    "model_answer",
+    "llm_answer",
+    "ai_answer",
+    "assistant_response",
+    "bot_response",
+    "canonical_answer",
+    "baseline_answer",
+    "annotated_answer",
+    "ground_truth_answer",
+    "ideal_answer",
 ]
 CONTEXT_CANDIDATES = [
     "context",
@@ -82,7 +108,63 @@ CONTEXT_CANDIDATES = [
     "evidence",
     "citation",
     "reference_text",
+    # v0.2 additions: RAG / grounding context variants
+    "context_text",
+    "grounding",
+    "grounding_context",
+    "relevant_doc",
+    "relevant_chunk",
+    "retrieved_text",
+    "source_document",
+    "reference_doc",
+    "rag_context",
+    "support_doc",
+    "supporting_doc",
 ]
+
+_CANDIDATE_MAP = {
+    "input": INPUT_CANDIDATES,
+    "expected": EXPECTED_CANDIDATES,
+    "context": CONTEXT_CANDIDATES,
+}
+
+
+def _resolve_column_conflicts(
+    detections: dict[str, ColumnDetection],
+    headers: list[str],
+    options: dict[str, Any],
+) -> dict[str, ColumnDetection]:
+    """Ensure no two fields claim the same column.
+
+    Priority: input > expected > context. When a lower-priority field would
+    claim a column already taken by a higher-priority field, it re-detects
+    excluding the taken columns.
+    """
+    priority = ["input", "expected", "context"]
+    taken: dict[str, str] = {}  # column -> field that claimed it
+    resolved: dict[str, ColumnDetection] = {}
+
+    for field in priority:
+        det = detections.get(field)
+        if det is None:
+            continue
+        if det.column is not None and det.column in taken:
+            # Conflict: re-detect excluding already-claimed columns
+            free = [h for h in headers if h not in taken]
+            override = options.get(f"{field}_column")
+            new_det = detect_column(free, field, _CANDIDATE_MAP[field], override)
+            if new_det.column is None:
+                new_det = detect_by_content(
+                    options.get("_raw_rows", []), free, field, _CANDIDATE_MAP[field],
+                    exclude_columns=list(taken),
+                )
+            resolved[field] = new_det
+        else:
+            resolved[field] = det
+        if resolved[field].column:
+            taken[resolved[field].column] = field
+
+    return resolved
 
 
 def _load_csv(path: Path) -> list[dict[str, str]]:
@@ -123,6 +205,10 @@ def load_eval_records(input_path: Path, options: dict[str, Any]) -> list[EvalRec
         )
         if fallback.column is not None:
             detections["input"] = fallback
+
+    # v0.2: resolve conflicts so no two fields claim the same column
+    options["_raw_rows_for_conflict"] = rows  # temp; used only inside resolve
+    detections = _resolve_column_conflicts(detections, headers, options)
 
     analyses: dict[str, ColumnAnalysis] = {}
     for name, det in detections.items():

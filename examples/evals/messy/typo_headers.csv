@@ -1,0 +1,5 @@
+id,questoin,expexted,kontext
+T-001,How do I reset my password?,Go to account settings and click Reset Password.,Passwords must be at least 8 characters.
+T-002,Where can I download the invoice?,Invoices are available under Billing > History.,Billing history is retained for 24 months.
+T-003,Can I add a second user to my account?,Yes — go to Settings > Team and invite them by email.,Team plans allow up to 5 users by default.
+T-004,What happens if I miss a payment?,Your account is paused after a 7-day grace period.,Grace period policy applies to monthly plans only.

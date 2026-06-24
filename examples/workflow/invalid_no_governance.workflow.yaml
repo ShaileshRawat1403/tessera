@@ -1,0 +1,28 @@
+# Intentionally invalid: missing recursion fence, no review gate, no hash invariants.
+# Used as a failing fixture in tests.
+
+name: risky.unguarded_deploy
+version: "0.1"
+description: A workflow with no governance guardrails — for testing the validator.
+
+steps:
+  - name: build
+    adapter: shell
+    outputs:
+      - build.tar.gz
+
+  - name: deploy
+    adapter: cloud_deploy
+    inputs:
+      - build.tar.gz
+    outputs:
+      - deploy_url.txt
+
+required_adapters:
+  - shell
+  - cloud_deploy
+
+# No review_gates, no recursion_fence, no evidence_policy.hash_invariant_steps.
+# promotion_rule is "after_review" but no review gate is defined -- the most
+# common mistake: developer sets after_review, forgets to add the gate.
+promotion_rule: after_review

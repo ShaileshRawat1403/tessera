@@ -1,0 +1,100 @@
+# codeops.repo_change.host_dev.v0 — the governed dogfood loop
+# Developer task -> governed patch proposal -> temp-worktree verification ->
+# evidence passport -> human review -> draft PR.
+# No main working-tree mutation before human approval.
+
+name: codeops.repo_change.host_dev
+version: "0.1"
+description: >
+  Governed developer SDLC loop. A task enters, a patch is proposed and verified
+  in an isolated worktree, an evidence passport is compiled, a human reviews,
+  and only then a draft PR is promoted. The main working tree is never mutated
+  before approval.
+
+steps:
+  - name: analyze_repo
+    adapter: tessera_repo
+    description: Map the repository structure and surface hygiene signals.
+    outputs:
+      - repo_map.jsonl
+
+  - name: propose_patch
+    adapter: codegen
+    description: Propose a code patch given the task and repo map.
+    inputs:
+      - repo_map.jsonl
+    outputs:
+      - patch.diff
+      - patch_hash.txt
+
+  - name: verify_patch
+    adapter: shell
+    description: Apply patch in a temp worktree, run declared tests, clean up.
+    inputs:
+      - patch.diff
+    outputs:
+      - verify_result.json
+
+  - name: compile_evidence
+    adapter: tessera_evals
+    description: Compile an evidence passport from the verify result and patch hash.
+    inputs:
+      - verify_result.json
+      - patch_hash.txt
+    outputs:
+      - evidence_passport.yaml
+
+  - name: promote_draft_pr
+    adapter: github
+    description: Open a draft PR with the patch and evidence passport attached.
+    inputs:
+      - evidence_passport.yaml
+      - patch.diff
+    outputs:
+      - pr_url.txt
+
+required_adapters:
+  - tessera_repo
+  - codegen
+  - shell
+  - tessera_evals
+  - github
+
+review_gates:
+  - after_step: compile_evidence
+    label: human_review
+    conditions:
+      - "evidence_passport.yaml present"
+      - "patch_hash invariant (hash at review == hash at promotion)"
+
+evidence_policy:
+  required_artifacts:
+    - evidence_passport.yaml
+    - verify_result.json
+  hash_invariant_steps:
+    - propose_patch
+    - promote_draft_pr
+
+capability_envelopes:
+  - step: propose_patch
+    allowed_write_paths:
+      - tmp/worktree/
+    denied_write_paths:
+      - flowright/packages/rao-runtime/
+      - flowright/apps/api/
+      - soothsayer/apps/api/
+
+recursion_fence:
+  protected_paths:
+    - flowright/packages/rao-runtime/
+    - flowright/apps/api/
+    - soothsayer/apps/api/
+
+promotion_rule: after_review
+
+run_state_mapping:
+  analyze_repo: running
+  propose_patch: running
+  verify_patch: running
+  compile_evidence: running
+  promote_draft_pr: completed
