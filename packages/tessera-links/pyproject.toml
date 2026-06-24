@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-links"
-version = "0.3.1"
+version = "0.4.0"
 description = "Links job pack for Tessera: check markdown links for broken file links, dead anchors, and orphan docs."
 readme = "README.md"
 requires-python = ">=3.10"

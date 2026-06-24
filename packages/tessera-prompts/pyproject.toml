@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-prompts"
-version = "0.3.1"
+version = "0.4.0"
 description = "Prompts job pack for Tessera: compile messy prompt collections into validated, reviewable assets."
 readme = "README.md"
 requires-python = ">=3.10"

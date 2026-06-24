@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-workflow"
-version = "0.3.1"
+version = "0.4.0"
 description = "Workflow Pack profile validator — governance schema for Tessera JobPack-based workflows."
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [{ name = "Shailesh Rawat" }]
 dependencies = [
-  "tesserakit-core>=0.3.1",
+  "tesserakit-core>=0.4.0",
   "pydantic>=2.0",
   "pyyaml>=6.0",
   "typer>=0.12",

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tesserakit-sql"
-version = "0.3.1"
+version = "0.4.0"
 description = "SQL job pack for Tessera: lint SQL files/migrations into a statement and table catalog."
 readme = "README.md"
 requires-python = ">=3.10"

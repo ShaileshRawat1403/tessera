@@ -141,6 +141,16 @@ def detect_packs(project: Path) -> list[Detection]:
     if (project / ".github" / "workflows").is_dir():
         detections.append(Detection("gha", "found .github/workflows", project))
 
+    # workflow (Workflow Pack governance definitions)
+    workflow_file = next(
+        (p for p in files if p.name.lower().endswith((".workflow.yaml", ".workflow.yml", ".workflow.json"))
+         or ("workflow" in p.name.lower() and p.suffix.lower() in (".yaml", ".yml", ".json")
+             and "workflow" in _safe_head(p))),
+        None,
+    )
+    if workflow_file is not None:
+        detections.append(Detection("workflow", f"found workflow definition: {workflow_file.name}", project))
+
     # changelog (a git repo, or a commits.jsonl)
     if (project / ".git").exists():
         detections.append(Detection("changelog", "found a git repository", project))
