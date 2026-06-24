@@ -1,5 +1,7 @@
 # Tessera
 
+[![ci](https://github.com/ShaileshRawat1403/tessera/actions/workflows/ci.yml/badge.svg)](https://github.com/ShaileshRawat1403/tessera/actions/workflows/ci.yml)
+
 **One command for your repository's security and hygiene posture — in one dashboard.**
 
 Point Tessera at a project and it detects what's there, runs the right checks, and renders everything into a single self-contained HTML report: CI security, leaked secrets, dependency drift, risky SQL migrations, Dockerfile hygiene, docs coverage, dead links, and more — 22 analyzers behind one small contract.
