@@ -8,7 +8,7 @@ version = "0.3.1"
 description = "RAG job pack for Tessera: compile a corpus + queries into a validated retrieval eval dataset."
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{ name = "Tessera" }]
+authors = [{ name = "Shailesh Rawat" }]
 dependencies = [
   "tesserakit-core>=0.1.0",
   "typer>=0.12",
@@ -22,6 +22,11 @@ classifiers = [
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",
 ]
+
+[project.urls]
+Homepage = "https://github.com/ShaileshRawat1403/tessera"
+Repository = "https://github.com/ShaileshRawat1403/tessera"
+Issues = "https://github.com/ShaileshRawat1403/tessera/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
