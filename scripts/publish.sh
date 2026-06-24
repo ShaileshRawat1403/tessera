@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # Paced PyPI upload that respects the new-project creation limit.
 #
-# PyPI caps how many brand-new projects an account can create (documented 20/hour
-# per user, lower for fresh accounts), and EVERY attempt -- including rejected
-# ones -- counts. So this script:
-#   1. asks PyPI (read-only, free) whether each project already exists,
-#   2. only uploads the ones that do not,
-#   3. paces real creations under the limit,
-#   4. STOPS on the first failure instead of retrying (retries just burn slots).
-# --skip-existing keeps every run idempotent; re-run any time to resume.
+# Two kinds of uploads have different rate-limit behaviour:
+#   EXISTING project, new version  -- no new-project limit; upload freely.
+#   NEW project (first upload)     -- counts against the new-project cap.
+#
+# This script:
+#   1. For each package, asks PyPI whether the project already exists.
+#   2. Existing projects: upload immediately (new version is not rate-limited).
+#   3. New projects: upload one at a time with a gap, stop on first 429.
+#   --skip-existing keeps every run idempotent; re-run any time to resume.
 #
 #   ./scripts/publish.sh                              # -> real PyPI
 #   TWINE_REPOSITORY=testpypi ./scripts/publish.sh    # -> TestPyPI
@@ -29,33 +30,42 @@ fi
 # Distinct package stems from the built wheels, e.g. tesserakit_core.
 pkgs=$(ls dist/*.whl | sed -E 's#^dist/##; s/-[0-9].*$//' | sort -u)
 total=$(echo "$pkgs" | wc -w | tr -d ' ')
-echo "checking $total packages against PyPI (gap ${DELAY}s between new creates)"
+echo "uploading $total packages (gap ${DELAY}s between NEW project creates)"
 
+updated=0
 created=0
-skipped=0
+failed=""
+
 for pkg in $pkgs; do
   dist_name=$(echo "$pkg" | tr '_' '-')
-  code=$(curl -s -o /dev/null -w "%{http_code}" "$INDEX/$dist_name/json")
-  if [ "$code" = "200" ]; then
-    echo "== $dist_name already on PyPI, skipping"
-    skipped=$((skipped + 1))
-    continue
-  fi
+  http_code=$(curl -s -o /dev/null -w "%{http_code}" "$INDEX/$dist_name/json")
 
-  echo "++ creating $dist_name"
-  if $PY -m twine upload --skip-existing dist/"$pkg"-*; then
-    created=$((created + 1))
-    sleep "$DELAY"
+  if [ "$http_code" = "200" ]; then
+    # Project exists: upload the new version freely (no creation rate limit).
+    echo "~~ $dist_name exists — uploading new version"
+    if $PY -m twine upload --skip-existing dist/"$pkg"-*; then
+      updated=$((updated + 1))
+    else
+      echo "!! $dist_name version upload failed (unexpected — project already exists)"
+      failed="$failed $dist_name"
+    fi
   else
-    echo ""
-    echo "!! upload of $dist_name failed -- almost certainly PyPI's new-project"
-    echo "   creation limit (HTTP 429 'Too many new projects created')."
-    echo "   Stopping now so we do not burn more attempts against the limit."
-    echo "   Created this run: $created. Already live: $skipped."
-    echo "   Fix: wait for the window to clear, or request a limit increase at"
-    echo "   https://github.com/pypi/support  then re-run (finished ones skip)."
-    exit 1
+    # New project: subject to creation rate limit.
+    echo "++ creating $dist_name"
+    if $PY -m twine upload --skip-existing dist/"$pkg"-*; then
+      created=$((created + 1))
+      sleep "$DELAY"
+    else
+      echo ""
+      echo "!! upload of $dist_name failed -- PyPI new-project creation limit."
+      echo "   Stopping now so we do not burn more attempts against the limit."
+      echo "   Updated: $updated. Created this run: $created."
+      [ -n "$failed" ] && echo "   Other failures: $failed"
+      echo "   Re-run later; finished packages are skipped automatically."
+      exit 1
+    fi
   fi
 done
 
-echo "done: $created created this run, $skipped already live ($total total)."
+echo "done: $updated existing updated, $created new created ($total total)."
+[ -n "$failed" ] && echo "WARNING: some version uploads failed: $failed"
